@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulation Theory</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #05000d;
+        color: #ff2d95;
+        font-family: 'Courier New', monospace;
+        overflow: hidden;
+        height: 100%;
+      }
+      #app {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      canvas {
+        image-rendering: pixelated;
+        box-shadow: 0 0 60px rgba(255, 45, 149, 0.4), 0 0 120px rgba(0, 246, 255, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
