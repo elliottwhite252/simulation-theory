@@ -281,76 +281,15 @@ function drawApartment(g: Phaser.GameObjects.Graphics, w: number, h: number) {
     }
   }
 
-  // ============================================================
-  // CHALK OUTLINE — body laying on the floor, viewed from above.
-  // Horizontal orientation + simple stick-figure-style limbs read instantly.
-  // ============================================================
-  const cox = w * 0.26;
-  const coy = floorY + 56;
-  g.lineStyle(3, 0xe8e0d0, 0.7);
-
-  // Head — circle at the LEFT end (top of the head)
-  g.strokeCircle(cox - 76, coy, 18);
-
-  // Torso — rounded rectangle outline (shoulders to hips)
-  // Top edge
-  g.beginPath();
-  g.moveTo(cox - 56, coy - 22);
-  g.lineTo(cox + 22, coy - 18);
-  g.strokePath();
-  // Bottom edge
-  g.beginPath();
-  g.moveTo(cox - 56, coy + 22);
-  g.lineTo(cox + 22, coy + 18);
-  g.strokePath();
-  // Shoulder line (left) connecting head to torso
-  g.beginPath();
-  g.moveTo(cox - 56, coy - 22);
-  g.lineTo(cox - 60, coy - 14);
-  g.strokePath();
-  g.beginPath();
-  g.moveTo(cox - 56, coy + 22);
-  g.lineTo(cox - 60, coy + 14);
-  g.strokePath();
-  // Hip cap
-  g.beginPath();
-  g.moveTo(cox + 22, coy - 18);
-  g.lineTo(cox + 22, coy + 18);
-  g.strokePath();
-
-  // Upper arm — single line extending UP from shoulder, ending in a hand circle
-  g.beginPath();
-  g.moveTo(cox - 36, coy - 22);
-  g.lineTo(cox - 36, coy - 72);
-  g.strokePath();
-  g.strokeCircle(cox - 36, coy - 78, 6); // hand
-
-  // Lower arm — single line extending DOWN from shoulder, ending in a hand circle
-  g.beginPath();
-  g.moveTo(cox - 36, coy + 22);
-  g.lineTo(cox - 30, coy + 72);
-  g.strokePath();
-  g.strokeCircle(cox - 28, coy + 78, 6); // hand
-
-  // Upper leg — single line extending RIGHT from hip (splayed up), ending in a foot
-  g.beginPath();
-  g.moveTo(cox + 22, coy - 14);
-  g.lineTo(cox + 84, coy - 32);
-  g.strokePath();
-  g.strokeCircle(cox + 88, coy - 34, 6); // foot
-
-  // Lower leg — single line extending RIGHT from hip (splayed down), ending in a foot
-  g.beginPath();
-  g.moveTo(cox + 22, coy + 14);
-  g.lineTo(cox + 88, coy + 30);
-  g.strokePath();
-  g.strokeCircle(cox + 92, coy + 32, 6); // foot
+  // (Floor intentionally left empty — lighting + the corkboard + the dialog
+  // carry the tone. Restraint is the senior move here.)
 
   // ============================================================
-  // HUGE USB DRIVE — foreground hero element
+  // HUGE USB DRIVE — foreground hero element (centered now that the
+  // chalk outline is gone, owns the foreground unchallenged)
   // ============================================================
-  const usbX = w * 0.58;
-  const usbY = floorY + 56;
+  const usbX = w * 0.42;
+  const usbY = floorY + 60;
   // Massive cyan glow halo
   g.fillStyle(COLORS.gridCyan, 0.08);
   g.fillCircle(usbX, usbY, 70);
