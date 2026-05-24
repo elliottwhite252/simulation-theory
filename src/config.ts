@@ -64,7 +64,7 @@ export const GAME = {
   meleeDamage: 2,
   bulletDamage: 1,
   enemyHp: 2,
-  enemySpeed: 110,
+  enemySpeed: 85,
   // World/camera
   worldWidth: 3840, // 4 screens wide
   // Playable "floor" Y band — the player walks IN the street.

@@ -14,15 +14,6 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     body.setAllowGravity(false);
     this.setSize(26, 32);
     this.setOffset(3, 6);
-
-    // Subtle glitch flicker baseline.
-    scene.tweens.add({
-      targets: this,
-      alpha: { from: 1, to: 0.7 },
-      duration: 180,
-      yoyo: true,
-      repeat: -1,
-    });
   }
 
   chase(targetX: number, targetY: number) {

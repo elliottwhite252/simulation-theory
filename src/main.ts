@@ -3,6 +3,7 @@ import { WIDTH, HEIGHT, COLORS, GAME } from './config';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
+import { CutsceneScene } from './scenes/CutsceneScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
-  scene: [BootScene, MenuScene, GameScene],
+  scene: [BootScene, MenuScene, CutsceneScene, GameScene],
 };
 
 new Phaser.Game(config);

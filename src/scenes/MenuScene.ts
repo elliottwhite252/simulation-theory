@@ -5,6 +5,7 @@ import {
   drawCone, drawManhole, drawAlley, drawCar,
 } from '../render/props';
 import { getSynth } from '../audio/synth';
+import { OPENING_CUTSCENE } from '../cutscenes/opening';
 
 export class MenuScene extends Phaser.Scene {
   private starG!: Phaser.GameObjects.Graphics;
@@ -265,7 +266,7 @@ export class MenuScene extends Phaser.Scene {
     const synth = getSynth();
     const startGame = () => {
       synth.start();
-      this.scene.start('GameScene');
+      this.scene.start('CutsceneScene', { config: OPENING_CUTSCENE });
     };
     // First user gesture: start the synth (audio context resume) AND advance.
     this.input.keyboard?.once('keydown-SPACE', startGame);

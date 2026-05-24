@@ -92,11 +92,14 @@ export class GameScene extends Phaser.Scene {
 
   // Melee visualization
   private meleeArc!: Phaser.GameObjects.Graphics;
+  private burstEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private phase: Phase = 'roaming';
   private currentRoomIdx = 0;
   private score = 0;
   private health = 4;
+  // Pending spawn telegraphs — keeps clearRoom from firing during the stagger window.
+  private pendingSpawns = 0;
 
   constructor() {
     super('GameScene');
@@ -107,6 +110,7 @@ export class GameScene extends Phaser.Scene {
     this.health = 4;
     this.phase = 'roaming';
     this.currentRoomIdx = 0;
+    this.pendingSpawns = 0;
 
     // Camera layers — must be created before anything we add to them.
     this.worldLayer = this.add.layer();
@@ -160,9 +164,23 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, 120, (GAME.floorTop + GAME.floorBottom) / 2);
     this.worldLayer.add(this.player);
 
-    // Melee arc graphic (depth above player)
-    this.meleeArc = this.add.graphics().setDepth(5);
+    // Melee baton — drawn once in local coords, then just repositioned/flipped
+    // each frame. No per-frame redraw of graphics commands.
+    this.meleeArc = this.add.graphics().setDepth(5).setVisible(false);
+    this.drawBatonShape(this.meleeArc);
     this.worldLayer.add(this.meleeArc);
+
+    // Single shared particle emitter, pooled and reused for all bursts so we
+    // don't allocate a new emitter on every hit.
+    this.burstEmitter = this.add.particles(0, 0, 'px', {
+      lifespan: 320,
+      speed: { min: 80, max: 260 },
+      scale: { start: 2, end: 0 },
+      quantity: 1,
+      blendMode: 'ADD',
+      emitting: false,
+    });
+    this.worldLayer.add(this.burstEmitter);
 
     // Cameras: main is zoomed-in for arcade closeness; HUD camera is 1:1 on top.
     this.cameras.main.setZoom(1.6);
@@ -276,7 +294,7 @@ export class GameScene extends Phaser.Scene {
     this.drawStreetProps(time);
     this.drawParkedCars();
     this.drawForegroundNeon();
-    this.drawMeleeArc(time);
+    this.updateMeleeArc(time);
     this.handleMeleeHits(time);
     this.handleRoomState();
 
@@ -396,7 +414,8 @@ export class GameScene extends Phaser.Scene {
         if ((e as Enemy).active) alive++;
         return true;
       });
-      if (alive === 0) this.clearRoom();
+      // Don't clear while spawns are still pending (telegraph in progress).
+      if (alive === 0 && this.pendingSpawns === 0) this.clearRoom();
     } else if (this.phase === 'cleared') {
       if (this.cameras.main.scrollX < MAX_CAMERA_X) {
         const room = ROOMS[this.currentRoomIdx];
@@ -440,16 +459,57 @@ export class GameScene extends Phaser.Scene {
 
   private spawnWave(room: (typeof ROOMS)[number]) {
     const viewW = WIDTH / this.cameras.main.zoom;
+    this.pendingSpawns = room.enemyCount;
     for (let i = 0; i < room.enemyCount; i++) {
       const side = i % 2 === 0 ? 1 : -1;
       const ex = side === 1
         ? room.cameraLockX + viewW - 20 - i * 14
         : room.cameraLockX + 20 + i * 14;
       const ey = Phaser.Math.Between(GAME.floorTop, GAME.floorBottom);
-      const enemy = new Enemy(this, ex, ey);
+      // Stagger spawns — first at 300ms, then ~900ms between each, with a
+      // 700ms telegraph before each enemy actually materializes.
+      const startDelay = 300 + i * 900;
+      this.time.delayedCall(startDelay, () => this.telegraphAndSpawn(ex, ey));
+    }
+  }
+
+  private telegraphAndSpawn(x: number, y: number) {
+    // Two stacked native Arc objects — Phaser animates scale/alpha at engine
+    // level, no per-frame JS callback. Cheap and smooth.
+    const outerRing = this.add
+      .circle(x, y, 24, COLORS.enemy, 0.15)
+      .setStrokeStyle(2, COLORS.enemy, 0.9)
+      .setDepth(-5)
+      .setScale(0.2);
+    const innerDot = this.add
+      .circle(x, y, 10, COLORS.enemy, 0.85)
+      .setDepth(-5)
+      .setScale(0.2);
+    this.worldLayer.add(outerRing);
+    this.worldLayer.add(innerDot);
+
+    this.tweens.add({
+      targets: [outerRing, innerDot],
+      scale: 1,
+      duration: 700,
+      ease: 'Sine.easeIn',
+    });
+    this.tweens.add({
+      targets: outerRing,
+      alpha: { from: 0.9, to: 0.4 },
+      duration: 700,
+      ease: 'Sine.easeIn',
+    });
+
+    this.time.delayedCall(700, () => {
+      outerRing.destroy();
+      innerDot.destroy();
+      // No particle burst here — the telegraph already provides the materialization beat.
+      const enemy = new Enemy(this, x, y);
       this.enemies.add(enemy);
       this.worldLayer.add(enemy);
-    }
+      this.pendingSpawns = Math.max(0, this.pendingSpawns - 1);
+    });
   }
 
   // --------------------------- HUD + banners ---------------------------
@@ -881,40 +941,62 @@ export class GameScene extends Phaser.Scene {
     g.fillRect(0, HEIGHT - 60, WIDTH, 60);
   }
 
-  private drawMeleeArc(now: number) {
-    this.meleeArc.clear();
-    if (!this.player.isMeleeActive(now)) return;
-    const dir = this.player.facing;
-    const cx = this.player.x + dir * (GAME.meleeReach * 0.6);
-    const cy = this.player.y;
-    this.meleeArc.lineStyle(3, COLORS.melee, 0.95);
-    this.meleeArc.fillStyle(COLORS.melee, 0.18);
-    this.meleeArc.beginPath();
-    this.meleeArc.arc(
-      cx,
-      cy,
-      GAME.meleeReach,
-      dir === 1 ? -Math.PI / 2 : Math.PI / 2,
-      dir === 1 ? Math.PI / 2 : (3 * Math.PI) / 2,
-      false,
-    );
-    this.meleeArc.strokePath();
-    this.meleeArc.fillPath();
+  // Draw the baton ONCE in local coords (facing right, origin at player position).
+  // Subsequent frames just reposition + flip — no per-frame Graphics work.
+  private drawBatonShape(g: Phaser.GameObjects.Graphics) {
+    const reach = GAME.meleeReach;
+    const handX = 10;
+    const handY = -2;
+    const tipX = reach + 6;
+    const tipY = 0;
+    const arcCx = reach * 0.6;
+    const arcCy = 0;
+
+    // Soft impact arc
+    g.fillStyle(COLORS.gridCyan, 0.14);
+    g.beginPath();
+    g.arc(arcCx, arcCy, reach, -Math.PI / 2, Math.PI / 2, false);
+    g.fillPath();
+    g.lineStyle(2, COLORS.gridCyan, 0.5);
+    g.strokePath();
+
+    // Baton rod — three stacked thicknesses for the glow
+    g.lineStyle(8, COLORS.gridCyan, 0.28);
+    g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
+    g.lineStyle(4, COLORS.gridCyan, 1);
+    g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
+    g.lineStyle(2, 0xffffff, 1);
+    g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
+
+    // Tip flash
+    g.fillStyle(COLORS.gridCyan, 0.5);
+    g.fillCircle(tipX, tipY, 7);
+    g.fillStyle(0xffffff, 1);
+    g.fillCircle(tipX, tipY, 3);
+
+    // Grip cap
+    g.fillStyle(0x1a1428, 1);
+    g.fillCircle(handX - 2, handY, 3);
+  }
+
+  private updateMeleeArc(now: number) {
+    const active = this.player.isMeleeActive(now);
+    if (!active) {
+      if (this.meleeArc.visible) this.meleeArc.setVisible(false);
+      return;
+    }
+    this.meleeArc.setVisible(true);
+    this.meleeArc.x = this.player.x;
+    this.meleeArc.y = this.player.y;
+    // Flip horizontally when facing left
+    this.meleeArc.scaleX = this.player.facing;
   }
 
   private spawnBurst(x: number, y: number, tint: number, count = 14) {
-    const emitter = this.add.particles(x, y, 'px', {
-      lifespan: 320,
-      speed: { min: 80, max: 260 },
-      scale: { start: 2, end: 0 },
-      tint,
-      quantity: count,
-      blendMode: 'ADD',
-      emitting: false,
-    });
-    this.worldLayer.add(emitter);
-    emitter.explode(count);
-    this.time.delayedCall(400, () => emitter.destroy());
+    // Reuse the pooled emitter — no per-hit allocation.
+    this.burstEmitter.setPosition(x, y);
+    this.burstEmitter.setParticleTint(tint);
+    this.burstEmitter.explode(count);
   }
 
   private healthString() {
