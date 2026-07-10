@@ -14,10 +14,10 @@ export interface CutsceneConfig {
   nextScene: string;
 }
 
-const PANEL_PADDING = 24;
-const PANEL_TOP = 40;
-const DIALOG_HEIGHT = 130;
-const PANEL_BOTTOM = HEIGHT - DIALOG_HEIGHT - 20;
+const PANEL_PADDING = 12;
+const PANEL_TOP = 20;
+const DIALOG_HEIGHT = 65;
+const PANEL_BOTTOM = HEIGHT - DIALOG_HEIGHT - 10;
 
 export class CutsceneScene extends Phaser.Scene {
   private config!: CutsceneConfig;
@@ -55,34 +55,34 @@ export class CutsceneScene extends Phaser.Scene {
 
     // Dialog box at the bottom
     this.dialogBox = this.add.graphics();
-    const dialogY = HEIGHT - DIALOG_HEIGHT - 10;
+    const dialogY = HEIGHT - DIALOG_HEIGHT - 5;
     this.dialogBox.fillStyle(0x05000d, 0.95);
     this.dialogBox.fillRect(PANEL_PADDING, dialogY, WIDTH - PANEL_PADDING * 2, DIALOG_HEIGHT);
-    this.dialogBox.lineStyle(2, COLORS.gridCyan, 0.7);
+    this.dialogBox.lineStyle(1, COLORS.gridCyan, 0.7);
     this.dialogBox.strokeRect(PANEL_PADDING, dialogY, WIDTH - PANEL_PADDING * 2, DIALOG_HEIGHT);
 
     this.dialogText = this.add
-      .text(PANEL_PADDING + 20, dialogY + 22, '', {
+      .text(PANEL_PADDING + 10, dialogY + 11, '', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '18px',
+        fontSize: '9px',
         color: HEX.text,
-        wordWrap: { width: WIDTH - PANEL_PADDING * 2 - 40 },
+        wordWrap: { width: WIDTH - PANEL_PADDING * 2 - 20 },
       })
-      .setLineSpacing(4);
+      .setLineSpacing(2);
 
     this.continuePrompt = this.add
-      .text(WIDTH - PANEL_PADDING - 12, HEIGHT - 24, '▶ space', {
+      .text(WIDTH - PANEL_PADDING - 6, HEIGHT - 12, '▶ space', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '12px',
+        fontSize: '7px',
         color: HEX.text,
       })
       .setOrigin(1, 1)
       .setAlpha(0.55);
 
     this.add
-      .text(PANEL_PADDING, 18, 'ESC skips', {
+      .text(PANEL_PADDING, 9, 'ESC skips', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '11px',
+        fontSize: '6px',
         color: HEX.text,
       })
       .setAlpha(0.35);

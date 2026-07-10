@@ -13,62 +13,62 @@ function drawSkylineWithLogo(g: Phaser.GameObjects.Graphics, w: number, h: numbe
     const sx = ((i * 53) % w);
     const sy = ((i * 31) % (h * 0.55));
     g.fillStyle(0xffffff, 0.7);
-    g.fillRect(sx, sy, 2, 2);
+    g.fillRect(sx, sy, 1, 1);
   }
 
   // Moon
   const mx = w * 0.78, my = h * 0.22;
   g.fillStyle(COLORS.moonHalo, 0.18);
-  g.fillCircle(mx, my, 38);
+  g.fillCircle(mx, my, 19);
   g.fillStyle(COLORS.moon, 1);
-  g.fillCircle(mx, my, 22);
+  g.fillCircle(mx, my, 11);
 
   // Skyline
   const baseY = h * 0.95;
   const buildings: Array<[number, number, number, number]> = [
-    [0, 140, 70, COLORS.bldgNearA],
-    [60, 180, 90, COLORS.bldgNearB],
-    [140, 210, 110, COLORS.bldgNearC],   // tall — will host logo
-    [240, 150, 85, COLORS.bldgNearA],
-    [320, 200, 100, COLORS.bldgNearD],
-    [410, 170, 80, COLORS.bldgNearB],
-    [480, 230, 120, COLORS.bldgNearC],
-    [590, 160, 75, COLORS.bldgNearA],
-    [660, 195, 95, COLORS.bldgNearD],
-    [750, 145, 70, COLORS.bldgNearB],
+    [0, 70, 35, COLORS.bldgNearA],
+    [30, 90, 45, COLORS.bldgNearB],
+    [70, 105, 55, COLORS.bldgNearC],   // tall — will host logo
+    [120, 75, 42, COLORS.bldgNearA],
+    [160, 100, 50, COLORS.bldgNearD],
+    [205, 85, 40, COLORS.bldgNearB],
+    [240, 115, 60, COLORS.bldgNearC],
+    [295, 80, 38, COLORS.bldgNearA],
+    [330, 98, 48, COLORS.bldgNearD],
+    [375, 72, 35, COLORS.bldgNearB],
   ];
   for (const [x, bh, bw, color] of buildings) {
     g.fillStyle(color, 1);
     g.fillRect(x, baseY - bh, bw, bh);
     // Windows
-    for (let wy = 8; wy < bh - 8; wy += 8) {
-      for (let wx = 4; wx < bw - 4; wx += 8) {
+    for (let wy = 4; wy < bh - 4; wy += 4) {
+      for (let wx = 2; wx < bw - 2; wx += 4) {
         if ((wx + wy) % 3 !== 0) {
           const hot = ((wx * 7 + wy * 3) % 5) === 0;
           g.fillStyle(hot ? COLORS.windowWarm : COLORS.windowCyan, hot ? 1 : 0.7);
-          g.fillRect(x + wx, baseY - bh + wy, 2, 2);
+          g.fillRect(x + wx, baseY - bh + wy, 1, 1);
         }
       }
     }
   }
 
-  // OmniCast neon sign on the tallest mid building (x=140, bh=210)
-  const signX = 145;
-  const signY = baseY - 210 + 30;
-  const signW = 100;
-  const signH = 18;
+  // OmniCast neon sign on the tallest mid building (x=70, bh=105)
+  const signX = 73;
+  const signY = baseY - 105 + 15;
+  const signW = 50;
+  const signH = 9;
   g.fillStyle(COLORS.gridPink, 0.18);
-  g.fillRect(signX - 4, signY - 4, signW + 8, signH + 8);
+  g.fillRect(signX - 2, signY - 2, signW + 4, signH + 4);
   g.fillStyle(0x05000d, 1);
   g.fillRect(signX, signY, signW, signH);
-  g.lineStyle(2, COLORS.gridPink, 1);
+  g.lineStyle(1, COLORS.gridPink, 1);
   g.strokeRect(signX, signY, signW, signH);
   // Faux "OMNICAST" — just bright bars suggesting letters
   for (let i = 0; i < 8; i++) {
-    const lx = signX + 8 + i * 11;
+    const lx = signX + 4 + i * 5;
     g.fillStyle(COLORS.gridPink, 1);
-    g.fillRect(lx, signY + 5, 2, 8);
-    g.fillRect(lx + 4, signY + 5, 2, 8);
+    g.fillRect(lx, signY + 2, 1, 4);
+    g.fillRect(lx + 2, signY + 2, 1, 4);
   }
 
   // Asphalt at the bottom
@@ -113,7 +113,7 @@ function drawApartment(g: Phaser.GameObjects.Graphics, w: number, h: number) {
   // CORKBOARD — fills upper area, anchors environmental storytelling
   // ============================================================
   const boardX = w * 0.14;
-  const boardY = 18;
+  const boardY = 9;
   const boardW = w * 0.72;
   const boardH = h * 0.5;
   // Cork board base
@@ -135,55 +135,55 @@ function drawApartment(g: Phaser.GameObjects.Graphics, w: number, h: number) {
   g.fillRect(boardX + boardW - 2, boardY, 2, boardH);
 
   // ---- Central NOLE photo (the target) ----
-  const noleW = 80;
-  const noleH = 100;
+  const noleW = 40;
+  const noleH = 50;
   const noleX = boardX + boardW / 2 - noleW / 2;
-  const noleY = boardY + boardH / 2 - noleH / 2 - 4;
+  const noleY = boardY + boardH / 2 - noleH / 2 - 2;
   // Photo paper
   g.fillStyle(0xe8e0d0, 1);
   g.fillRect(noleX, noleY, noleW, noleH);
   g.fillStyle(0xc8c0b0, 1);
-  g.fillRect(noleX, noleY + noleH - 12, noleW, 12); // "name plate" strip at bottom
+  g.fillRect(noleX, noleY + noleH - 6, noleW, 6); // "name plate" strip at bottom
   // Nole silhouette inside the photo
   g.fillStyle(0x1a1a26, 1);
-  g.fillRect(noleX + 18, noleY + 50, 44, 38); // shoulders / suit
-  g.fillRect(noleX + 34, noleY + 42, 12, 10); // neck
-  g.fillRect(noleX + 25, noleY + 16, 30, 28); // head
+  g.fillRect(noleX + 9, noleY + 25, 22, 19); // shoulders / suit
+  g.fillRect(noleX + 17, noleY + 21, 6, 5); // neck
+  g.fillRect(noleX + 12, noleY + 8, 15, 14); // head
   // Slight collar / tie hint
   g.fillStyle(0xe8e0d0, 1);
-  g.fillRect(noleX + 38, noleY + 52, 4, 14);
+  g.fillRect(noleX + 19, noleY + 26, 2, 7);
   // Eyes — barely visible
   g.fillStyle(0xe8e0d0, 0.6);
-  g.fillRect(noleX + 30, noleY + 28, 3, 2);
-  g.fillRect(noleX + 47, noleY + 28, 3, 2);
+  g.fillRect(noleX + 15, noleY + 14, 2, 1);
+  g.fillRect(noleX + 23, noleY + 14, 2, 1);
   // Photo border
   g.lineStyle(1, 0x000000, 0.6);
   g.strokeRect(noleX, noleY, noleW, noleH);
   // Red circle around his head — TARGET
-  g.lineStyle(3, COLORS.gridPink, 1);
-  g.strokeCircle(noleX + 40, noleY + 30, 18);
+  g.lineStyle(2, COLORS.gridPink, 1);
+  g.strokeCircle(noleX + 20, noleY + 15, 9);
   // Red X across the photo
-  g.lineStyle(3, COLORS.gridPink, 0.9);
+  g.lineStyle(2, COLORS.gridPink, 0.9);
   g.beginPath();
-  g.moveTo(noleX + 6, noleY + 8);
-  g.lineTo(noleX + noleW - 6, noleY + noleH - 12);
+  g.moveTo(noleX + 3, noleY + 4);
+  g.lineTo(noleX + noleW - 3, noleY + noleH - 6);
   g.strokePath();
   g.beginPath();
-  g.moveTo(noleX + noleW - 6, noleY + 8);
-  g.lineTo(noleX + 6, noleY + noleH - 12);
+  g.moveTo(noleX + noleW - 3, noleY + 4);
+  g.lineTo(noleX + 3, noleY + noleH - 6);
   g.strokePath();
   // Push-pin in the center top
   g.fillStyle(COLORS.gridPink, 1);
-  g.fillCircle(noleX + noleW / 2, noleY + 4, 3);
+  g.fillCircle(noleX + noleW / 2, noleY + 2, 2);
   g.fillStyle(0xffffff, 0.8);
-  g.fillCircle(noleX + noleW / 2 - 1, noleY + 3, 1);
+  g.fillCircle(noleX + noleW / 2 - 0.5, noleY + 1.5, 1);
 
   // ---- Other evidence photos around Nole ----
   const photos = [
-    { x: boardX + 30,                y: boardY + 20,  w: 70, h: 56, kind: 'tower' as const },
-    { x: boardX + 30,                y: boardY + 95,  w: 80, h: 50, kind: 'doc'   as const },
-    { x: boardX + boardW - 100,      y: boardY + 20,  w: 70, h: 65, kind: 'tower' as const },
-    { x: boardX + boardW - 110,      y: boardY + 100, w: 80, h: 50, kind: 'screen' as const },
+    { x: boardX + 15,                y: boardY + 10, w: 35, h: 28, kind: 'tower' as const },
+    { x: boardX + 15,                y: boardY + 47, w: 40, h: 25, kind: 'doc'   as const },
+    { x: boardX + boardW - 50,       y: boardY + 10, w: 35, h: 32, kind: 'tower' as const },
+    { x: boardX + boardW - 55,       y: boardY + 50, w: 40, h: 25, kind: 'screen' as const },
   ];
   for (const p of photos) {
     // Tape strip at the top

@@ -39,8 +39,8 @@ interface StreetProp {
   seed: number;
 }
 
-const FAR_STRIP = 2400;
-const NEAR_STRIP = 2000;
+const FAR_STRIP = 1200;
+const NEAR_STRIP = 1000;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -63,15 +63,8 @@ export class GameScene extends Phaser.Scene {
   private worldLayer!: Phaser.GameObjects.Layer;
   private hudLayer!: Phaser.GameObjects.Layer;
 
-  // Layered backdrop, all anchored to camera (drawn each frame).
-  private skyLayer!: Phaser.GameObjects.Graphics;
-  private starLayer!: Phaser.GameObjects.Graphics;
-  private moonLayer!: Phaser.GameObjects.Graphics;
-  private farCityLayer!: Phaser.GameObjects.Graphics;
-  private nearCityLayer!: Phaser.GameObjects.Graphics;
-  private streetLayer!: Phaser.GameObjects.Graphics;
-  private propsLayer!: Phaser.GameObjects.Graphics;
-  private carLayer!: Phaser.GameObjects.Graphics;
+  // Nano Banana painted backdrop — one wide image covering the whole world.
+  private bgLayer!: Phaser.GameObjects.TileSprite;
   private foregroundNeon!: Phaser.GameObjects.Graphics;
 
   private parkedCars: ParkedCar[] = [];
@@ -124,44 +117,43 @@ export class GameScene extends Phaser.Scene {
     this.farCity = this.generateBuildings({
       seed: 1337,
       stripWidth: FAR_STRIP,
-      minW: 32, maxW: 64,
-      minH: 70, maxH: 160,
+      minW: 16, maxW: 32,
+      minH: 35, maxH: 80,
       palette: [COLORS.bldgFarA, COLORS.bldgFarB, COLORS.bldgFarC],
       windowDensity: 0.55,
-      windowSize: 2,
+      windowSize: 1,
     });
     this.nearCity = this.generateBuildings({
       seed: 4242,
       stripWidth: NEAR_STRIP,
-      minW: 56, maxW: 120,
-      minH: 110, maxH: 240,
+      minW: 28, maxW: 60,
+      minH: 55, maxH: 120,
       palette: [COLORS.bldgNearA, COLORS.bldgNearB, COLORS.bldgNearC, COLORS.bldgNearD],
       windowDensity: 0.7,
-      windowSize: 3,
+      windowSize: 2,
     });
     this.stars = this.generateStars(110);
 
-    // Backdrop graphics layers (all scrollFactor 0, redrawn each frame).
-    this.skyLayer = this.add.graphics().setScrollFactor(0).setDepth(-100);
-    this.starLayer = this.add.graphics().setScrollFactor(0).setDepth(-90);
-    this.moonLayer = this.add.graphics().setScrollFactor(0).setDepth(-85);
-    this.farCityLayer = this.add.graphics().setScrollFactor(0).setDepth(-60);
-    this.nearCityLayer = this.add.graphics().setScrollFactor(0).setDepth(-40);
-    this.streetLayer = this.add.graphics().setScrollFactor(0).setDepth(-20);
-    this.propsLayer = this.add.graphics().setScrollFactor(0).setDepth(-15);
-    this.carLayer = this.add.graphics().setScrollFactor(0).setDepth(-10);
+    // Painted city backdrop — tiled across the full world width so it scrolls
+    // seamlessly as the camera moves. Native image height (1536) is scaled to the
+    // canvas height (270), then repeats horizontally.
+    this.bgLayer = this.add
+      .tileSprite(0, 0, GAME.worldWidth, HEIGHT, 'bg-zone-1')
+      .setOrigin(0, 0)
+      .setDepth(-100);
+    const bgTex = this.textures.get('bg-zone-1').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const bgScale = HEIGHT / bgTex.height;
+    this.bgLayer.setTileScale(bgScale, bgScale);
+
+    // Foreground vignette + scanlines stay procedural — cheap CRT overlay.
     this.foregroundNeon = this.add.graphics().setScrollFactor(0).setDepth(-10);
-    this.worldLayer.add([
-      this.skyLayer, this.starLayer, this.moonLayer,
-      this.farCityLayer, this.nearCityLayer, this.streetLayer,
-      this.propsLayer, this.carLayer, this.foregroundNeon,
-    ]);
+    this.worldLayer.add([this.bgLayer, this.foregroundNeon]);
 
     this.streetProps = this.generateStreetProps();
     this.parkedCars = this.generateParkedCars();
 
     // Player
-    this.player = new Player(this, 120, (GAME.floorTop + GAME.floorBottom) / 2);
+    this.player = new Player(this, 60, (GAME.floorTop + GAME.floorBottom) / 2);
     this.worldLayer.add(this.player);
 
     // Melee baton — drawn once in local coords, then just repositioned/flipped
@@ -174,8 +166,8 @@ export class GameScene extends Phaser.Scene {
     // don't allocate a new emitter on every hit.
     this.burstEmitter = this.add.particles(0, 0, 'px', {
       lifespan: 320,
-      speed: { min: 80, max: 260 },
-      scale: { start: 2, end: 0 },
+      speed: { min: 40, max: 130 },
+      scale: { start: 1, end: 0 },
       quantity: 1,
       blendMode: 'ADD',
       emitting: false,
@@ -185,7 +177,7 @@ export class GameScene extends Phaser.Scene {
     // Cameras: main is zoomed-in for arcade closeness; HUD camera is 1:1 on top.
     this.cameras.main.setZoom(1.6);
     this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-    this.cameras.main.setDeadzone(80, HEIGHT);
+    this.cameras.main.setDeadzone(40, HEIGHT);
     const hudCam = this.cameras.add(0, 0, WIDTH, HEIGHT);
     hudCam.setName('hud');
     this.cameras.main.ignore(this.hudLayer);
@@ -261,7 +253,7 @@ export class GameScene extends Phaser.Scene {
       const room = ROOMS[this.currentRoomIdx];
       const viewW = WIDTH / this.cameras.main.zoom;
       const lockLeft = room.cameraLockX;
-      const lockRight = room.cameraLockX + viewW - 30;
+      const lockRight = room.cameraLockX + viewW - 15;
       if (this.player.x > lockRight && vx > 0) vx = 0;
       if (this.player.x < lockLeft && vx < 0) vx = 0;
     }
@@ -285,14 +277,6 @@ export class GameScene extends Phaser.Scene {
       return true;
     });
 
-    this.drawSky();
-    this.drawStars(time);
-    this.drawMoon();
-    this.drawCity(this.farCityLayer, this.farCity, FAR_STRIP, 0.18, GAME.groundY - 4);
-    this.drawCity(this.nearCityLayer, this.nearCity, NEAR_STRIP, 0.42, GAME.groundY);
-    this.drawStreet();
-    this.drawStreetProps(time);
-    this.drawParkedCars();
     this.drawForegroundNeon();
     this.updateMeleeArc(time);
     this.handleMeleeHits(time);
@@ -314,12 +298,12 @@ export class GameScene extends Phaser.Scene {
 
     const dir = this.player.facing;
     const bullet = this.bullets.get(
-      this.player.x + dir * 22,
-      this.player.y - 2,
+      this.player.x + dir * 11,
+      this.player.y - 1,
       'bullet',
     ) as Phaser.Physics.Arcade.Sprite | null;
     if (!bullet) return;
-    bullet.enableBody(true, this.player.x + dir * 22, this.player.y - 2, true, true);
+    bullet.enableBody(true, this.player.x + dir * 11, this.player.y - 1, true, true);
     const body = bullet.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
     body.setVelocity(dir * GAME.bulletSpeed, 0);
@@ -327,13 +311,7 @@ export class GameScene extends Phaser.Scene {
     bullet.setTint(COLORS.gridCyan);
     this.worldLayer.add(bullet);
 
-    // Pose: extend arm + show pistol for a moment.
-    this.player.setTexture('player-shoot');
-    this.time.delayedCall(160, () => {
-      if (this.player.active && this.player.texture.key === 'player-shoot') {
-        this.player.setTexture('player');
-      }
-    });
+    this.player.triggerShoot();
   }
 
   private tryMelee() {
@@ -343,7 +321,9 @@ export class GameScene extends Phaser.Scene {
     }
     if (this.phase === 'won') return;
     const now = this.time.now;
-    this.player.tryMelee(now);
+    if (this.player.tryMelee(now)) {
+      this.player.triggerMelee();
+    }
   }
 
   // --------------------------- collisions ---------------------------
@@ -365,7 +345,7 @@ export class GameScene extends Phaser.Scene {
       const dy = enemy.y - cy;
       if (Math.hypot(dx, dy) < reach) {
         const body = enemy.body as Phaser.Physics.Arcade.Body;
-        body.setVelocity(this.player.facing * 260, -40);
+        body.setVelocity(this.player.facing * 130, -20);
         this.damageEnemy(enemy, GAME.meleeDamage);
       }
       return true;
@@ -389,11 +369,12 @@ export class GameScene extends Phaser.Scene {
     enemy.iframesUntil = now + 600;
     this.health -= 1;
     this.hudText.setText(this.healthString());
+    this.player.triggerHit();
     this.cameras.main.shake(180, 0.012);
     this.cameras.main.flash(110, 255, 45, 149);
     this.spawnBurst(this.player.x, this.player.y, COLORS.gridCyan, 8);
     const body = enemy.body as Phaser.Physics.Arcade.Body;
-    body.setVelocity(-this.player.facing * 200, -40);
+    body.setVelocity(-this.player.facing * 100, -20);
     if (this.health <= 0) this.triggerGameOver();
   }
 
@@ -402,7 +383,7 @@ export class GameScene extends Phaser.Scene {
     if (this.phase === 'roaming') {
       const room = ROOMS[this.currentRoomIdx];
       if (!room) {
-        if (this.player.x > GAME.worldWidth - 60) this.triggerWin();
+        if (this.player.x > GAME.worldWidth - 30) this.triggerWin();
         return;
       }
       if (this.cameras.main.scrollX >= room.triggerX - 1) {
@@ -420,7 +401,7 @@ export class GameScene extends Phaser.Scene {
       if (this.cameras.main.scrollX < MAX_CAMERA_X) {
         const room = ROOMS[this.currentRoomIdx];
         const viewW = WIDTH / this.cameras.main.zoom;
-        if (this.player.x > room.cameraLockX + viewW - 60) {
+        if (this.player.x > room.cameraLockX + viewW - 30) {
           this.currentRoomIdx++;
           this.goText.setVisible(false);
           this.phase = 'roaming';
@@ -463,8 +444,8 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < room.enemyCount; i++) {
       const side = i % 2 === 0 ? 1 : -1;
       const ex = side === 1
-        ? room.cameraLockX + viewW - 20 - i * 14
-        : room.cameraLockX + 20 + i * 14;
+        ? room.cameraLockX + viewW - 10 - i * 7
+        : room.cameraLockX + 10 + i * 7;
       const ey = Phaser.Math.Between(GAME.floorTop, GAME.floorBottom);
       // Stagger spawns — first at 300ms, then ~900ms between each, with a
       // 700ms telegraph before each enemy actually materializes.
@@ -477,12 +458,12 @@ export class GameScene extends Phaser.Scene {
     // Two stacked native Arc objects — Phaser animates scale/alpha at engine
     // level, no per-frame JS callback. Cheap and smooth.
     const outerRing = this.add
-      .circle(x, y, 24, COLORS.enemy, 0.15)
-      .setStrokeStyle(2, COLORS.enemy, 0.9)
+      .circle(x, y, 12, COLORS.enemy, 0.15)
+      .setStrokeStyle(1, COLORS.enemy, 0.9)
       .setDepth(-5)
       .setScale(0.2);
     const innerDot = this.add
-      .circle(x, y, 10, COLORS.enemy, 0.85)
+      .circle(x, y, 5, COLORS.enemy, 0.85)
       .setDepth(-5)
       .setScale(0.2);
     this.worldLayer.add(outerRing);
@@ -515,30 +496,30 @@ export class GameScene extends Phaser.Scene {
   // --------------------------- HUD + banners ---------------------------
   private buildHUD() {
     this.scoreText = this.add
-      .text(16, 12, 'SIGNAL: 0', {
+      .text(8, 6, 'SIGNAL: 0', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '18px',
+        fontSize: '9px',
         color: HEX.text,
       })
       .setScrollFactor(0)
       .setDepth(1000)
-      .setShadow(2, 2, HEX.textShadow, 0);
+      .setShadow(1, 1, HEX.textShadow, 0);
 
     this.hudText = this.add
-      .text(WIDTH - 16, 12, this.healthString(), {
+      .text(WIDTH - 8, 6, this.healthString(), {
         fontFamily: 'Courier New, monospace',
-        fontSize: '18px',
+        fontSize: '9px',
         color: HEX.textShadow,
       })
       .setOrigin(1, 0)
       .setScrollFactor(0)
       .setDepth(1000)
-      .setShadow(2, 2, HEX.text, 0);
+      .setShadow(1, 1, HEX.text, 0);
 
     this.roomText = this.add
-      .text(WIDTH / 2, 14, this.roomLabel(), {
+      .text(WIDTH / 2, 7, this.roomLabel(), {
         fontFamily: 'Courier New, monospace',
-        fontSize: '16px',
+        fontSize: '8px',
         color: HEX.text,
       })
       .setOrigin(0.5, 0)
@@ -546,9 +527,9 @@ export class GameScene extends Phaser.Scene {
       .setDepth(1000);
 
     this.goText = this.add
-      .text(WIDTH - 60, HEIGHT / 2, 'GO →', {
+      .text(WIDTH - 30, HEIGHT / 2, 'GO →', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '36px',
+        fontSize: '18px',
         color: HEX.melee,
       })
       .setOrigin(1, 0.5)
@@ -557,9 +538,9 @@ export class GameScene extends Phaser.Scene {
       .setVisible(false);
 
     this.muteText = this.add
-      .text(WIDTH - 16, HEIGHT - 16, this.muteLabel(), {
+      .text(WIDTH - 8, HEIGHT - 8, this.muteLabel(), {
         fontFamily: 'Courier New, monospace',
-        fontSize: '13px',
+        fontSize: '7px',
         color: HEX.text,
       })
       .setOrigin(1, 1)
@@ -581,12 +562,12 @@ export class GameScene extends Phaser.Scene {
 
   private flashLockBanner() {
     const banner = this.add
-      .text(WIDTH / 2, HEIGHT / 2 - 80, '!! INTRUSION DETECTED !!', {
+      .text(WIDTH / 2, HEIGHT / 2 - 40, '!! INTRUSION DETECTED !!', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '28px',
+        fontSize: '14px',
         color: HEX.textShadow,
         stroke: HEX.text,
-        strokeThickness: 2,
+        strokeThickness: 1,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
@@ -605,20 +586,20 @@ export class GameScene extends Phaser.Scene {
     this.phase = 'won';
     this.physics.pause();
     const title = this.add
-      .text(WIDTH / 2, HEIGHT / 2 - 20, 'SIMULATION BREACHED', {
+      .text(WIDTH / 2, HEIGHT / 2 - 10, 'SIMULATION BREACHED', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '40px',
+        fontSize: '20px',
         color: HEX.text,
         stroke: HEX.textShadow,
-        strokeThickness: 3,
+        strokeThickness: 1,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2000);
     const sub = this.add
-      .text(WIDTH / 2, HEIGHT / 2 + 30, `FINAL SIGNAL: ${this.score}`, {
+      .text(WIDTH / 2, HEIGHT / 2 + 15, `FINAL SIGNAL: ${this.score}`, {
         fontFamily: 'Courier New, monospace',
-        fontSize: '20px',
+        fontSize: '10px',
         color: HEX.text,
       })
       .setOrigin(0.5)
@@ -633,29 +614,29 @@ export class GameScene extends Phaser.Scene {
     this.phase = 'gameover';
     this.physics.pause();
     const title = this.add
-      .text(WIDTH / 2, HEIGHT / 2 - 20, 'SIGNAL LOST', {
+      .text(WIDTH / 2, HEIGHT / 2 - 10, 'SIGNAL LOST', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '52px',
+        fontSize: '26px',
         color: HEX.textShadow,
         stroke: HEX.text,
-        strokeThickness: 3,
+        strokeThickness: 1,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2000);
     const sub = this.add
-      .text(WIDTH / 2, HEIGHT / 2 + 30, `FINAL SIGNAL: ${this.score}`, {
+      .text(WIDTH / 2, HEIGHT / 2 + 15, `FINAL SIGNAL: ${this.score}`, {
         fontFamily: 'Courier New, monospace',
-        fontSize: '20px',
+        fontSize: '10px',
         color: HEX.text,
       })
       .setOrigin(0.5)
       .setScrollFactor(0)
       .setDepth(2000);
     const hint = this.add
-      .text(WIDTH / 2, HEIGHT / 2 + 70, 'press any key / click to retry', {
+      .text(WIDTH / 2, HEIGHT / 2 + 35, 'press any key / click to retry', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '14px',
+        fontSize: '7px',
         color: HEX.text,
       })
       .setOrigin(0.5)
@@ -683,9 +664,9 @@ export class GameScene extends Phaser.Scene {
       const h = Math.floor(opts.minH + rand() * (opts.maxH - opts.minH));
       const color = opts.palette[Math.floor(rand() * opts.palette.length)];
       const windows: Building['windows'] = [];
-      const padX = 4, padY = 6;
-      const gridX = opts.windowSize + 3;
-      const gridY = opts.windowSize + 4;
+      const padX = 2, padY = 3;
+      const gridX = opts.windowSize + 2;
+      const gridY = opts.windowSize + 2;
       for (let wy = padY; wy < h - padY; wy += gridY) {
         for (let wx = padX; wx < w - padX; wx += gridX) {
           if (rand() < opts.windowDensity) {
@@ -700,7 +681,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
       out.push({ x, w, h, color, windows });
-      x += w - Math.floor(rand() * 4); // slight overlap so the skyline has no gaps
+      x += w - Math.floor(rand() * 2); // slight overlap so the skyline has no gaps
     }
     return out;
   }
@@ -711,7 +692,7 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       out.push({
         x: Math.floor(rand() * WIDTH),
-        y: Math.floor(rand() * (GAME.groundY - 40)),
+        y: Math.floor(rand() * (GAME.groundY - 20)),
         base: 0.4 + rand() * 0.5,
         phase: rand() * Math.PI * 2,
         speed: 0.0015 + rand() * 0.002,
@@ -744,7 +725,7 @@ export class GameScene extends Phaser.Scene {
         1,
       );
       g.fillStyle(COLORS.star, a);
-      g.fillRect(s.x, s.y, 2, 2);
+      g.fillRect(s.x, s.y, 1, 1);
     }
   }
 
@@ -753,17 +734,17 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     // Moon drifts very slightly with camera for subtle parallax.
     const cx = WIDTH * 0.68 - this.cameras.main.scrollX * 0.04;
-    const cy = 110;
+    const cy = 55;
     g.fillStyle(COLORS.moonHalo, 0.18);
-    g.fillCircle(cx, cy, 58);
+    g.fillCircle(cx, cy, 29);
     g.fillStyle(COLORS.moonHalo, 0.3);
-    g.fillCircle(cx, cy, 40);
+    g.fillCircle(cx, cy, 20);
     g.fillStyle(COLORS.moon, 1);
-    g.fillCircle(cx, cy, 26);
+    g.fillCircle(cx, cy, 13);
     // Crater shadow for character.
     g.fillStyle(COLORS.moonHalo, 0.6);
-    g.fillCircle(cx + 9, cy - 5, 5);
-    g.fillCircle(cx - 7, cy + 6, 3);
+    g.fillCircle(cx + 4, cy - 2, 2);
+    g.fillCircle(cx - 3, cy + 3, 2);
   }
 
   private drawCity(
@@ -780,7 +761,7 @@ export class GameScene extends Phaser.Scene {
       const passShift = pass * stripWidth - offset;
       for (const b of city) {
         const bx = b.x + passShift;
-        if (bx + b.w < -20 || bx > WIDTH + 20) continue;
+        if (bx + b.w < -10 || bx > WIDTH + 10) continue;
         // Building body
         g.fillStyle(b.color, 1);
         g.fillRect(bx, baseY - b.h, b.w, b.h);
@@ -790,7 +771,7 @@ export class GameScene extends Phaser.Scene {
         // Windows
         for (const w of b.windows) {
           g.fillStyle(w.color, w.bright ? 1 : 0.65);
-          g.fillRect(bx + w.x, baseY - b.h + w.y, 2, 2);
+          g.fillRect(bx + w.x, baseY - b.h + w.y, 1, 1);
         }
       }
     }
@@ -807,28 +788,28 @@ export class GameScene extends Phaser.Scene {
 
     // Subtle fog at the back of the street for that neon-bleed glow.
     g.fillStyle(COLORS.streetEdge, 0.5);
-    g.fillRect(0, horizonY, WIDTH, 22);
+    g.fillRect(0, horizonY, WIDTH, 11);
 
     // Back curb (pink neon) — separates sidewalk/buildings from the street.
     g.fillStyle(COLORS.curbNeon, 0.95);
-    g.fillRect(0, horizonY - 1, WIDTH, 2);
+    g.fillRect(0, horizonY - 1, WIDTH, 1);
     g.fillStyle(COLORS.curbNeon, 0.25);
-    g.fillRect(0, horizonY - 4, WIDTH, 2);
+    g.fillRect(0, horizonY - 2, WIDTH, 1);
 
     // Front curb (cyan) at the bottom of the canvas.
     g.fillStyle(COLORS.gridCyan, 0.6);
-    g.fillRect(0, HEIGHT - 4, WIDTH, 2);
+    g.fillRect(0, HEIGHT - 2, WIDTH, 1);
 
     // Lane dashes down the middle of the street where the player walks.
     const scrollX = this.cameras.main.scrollX;
     const laneY = Math.floor((GAME.floorTop + GAME.floorBottom) / 2) - 1;
     g.fillStyle(COLORS.lane, 0.6);
-    const len = 34;
-    const gap = 50;
+    const len = 17;
+    const gap = 25;
     const step = len + gap;
     const startWorldX = Math.floor(scrollX / step) * step;
     for (let wx = startWorldX; wx < scrollX + WIDTH + step; wx += step) {
-      g.fillRect(wx - scrollX, laneY, len, 3);
+      g.fillRect(wx - scrollX, laneY, len, 2);
     }
   }
 
@@ -838,7 +819,7 @@ export class GameScene extends Phaser.Scene {
 
     // Pass 1: sidewalk-level props (lamps, signs, billboards, stop signs).
     const sw = mulberry32(8888);
-    let x = 60;
+    let x = 30;
     while (x < GAME.worldWidth) {
       const r = sw();
       let type: StreetProp['type'];
@@ -847,35 +828,35 @@ export class GameScene extends Phaser.Scene {
       else if (r < 0.90) type = 'billboard';
       else type = 'stopSign';
       props.push({ x: Math.floor(x), type, seed: Math.floor(sw() * 1e9) });
-      x += 70 + sw() * 130;
+      x += 35 + sw() * 65;
     }
 
     // Pass 2: rare alleys punched through the skyline (every few screens).
     const al = mulberry32(3333);
-    x = 350 + al() * 300;
-    while (x < GAME.worldWidth - 200) {
+    x = 175 + al() * 150;
+    while (x < GAME.worldWidth - 100) {
       props.push({ x: Math.floor(x), type: 'alley', seed: Math.floor(al() * 1e9) });
-      x += 720 + al() * 520;
+      x += 360 + al() * 260;
     }
 
     // Pass 3: street-level decals (manholes + traffic cones, sometimes clustered).
     const rd = mulberry32(7777);
-    x = 120;
+    x = 60;
     while (x < GAME.worldWidth) {
       const t = rd();
       if (t < 0.55) {
         props.push({ x: Math.floor(x), type: 'manhole', seed: Math.floor(rd() * 1e9) });
-        x += 180 + rd() * 240;
+        x += 90 + rd() * 120;
       } else {
         const clusterSize = 1 + Math.floor(rd() * 3); // 1–3 cones in a row
         for (let i = 0; i < clusterSize; i++) {
           props.push({
-            x: Math.floor(x + i * 22),
+            x: Math.floor(x + i * 11),
             type: 'cone',
             seed: Math.floor(rd() * 1e9),
           });
         }
-        x += 40 + clusterSize * 22 + rd() * 200;
+        x += 20 + clusterSize * 11 + rd() * 100;
       }
     }
 
@@ -888,7 +869,7 @@ export class GameScene extends Phaser.Scene {
     const scrollX = this.cameras.main.scrollX;
     for (const p of this.streetProps) {
       const sx = p.x - scrollX;
-      if (sx < -120 || sx > WIDTH + 120) continue;
+      if (sx < -60 || sx > WIDTH + 60) continue;
       switch (p.type) {
         case 'lamp': drawLamp(g, sx, p.seed, time); break;
         case 'hangingSign': drawHangingSign(g, sx, p.seed, time); break;
@@ -905,15 +886,15 @@ export class GameScene extends Phaser.Scene {
   private generateParkedCars(): ParkedCar[] {
     const rand = mulberry32(5555);
     const cars: ParkedCar[] = [];
-    let x = 220;
+    let x = 110;
     while (x < GAME.worldWidth) {
       cars.push({
         x: Math.floor(x),
-        yOffset: Math.floor(rand() * 8 - 4),
+        yOffset: Math.floor(rand() * 4 - 2),
         paletteIdx: Math.floor(rand() * CAR_PALETTE.length),
         dir: rand() < 0.5 ? 1 : -1,
       });
-      x += 200 + rand() * 220;
+      x += 100 + rand() * 110;
     }
     return cars;
   }
@@ -924,7 +905,7 @@ export class GameScene extends Phaser.Scene {
     const scrollX = this.cameras.main.scrollX;
     for (const c of this.parkedCars) {
       const sx = c.x - scrollX;
-      if (sx < -160 || sx > WIDTH + 160) continue;
+      if (sx < -80 || sx > WIDTH + 80) continue;
       drawCar(g, sx, GAME.roadY + c.yOffset, c.dir, CAR_PALETTE[c.paletteIdx]);
     }
   }
@@ -935,19 +916,19 @@ export class GameScene extends Phaser.Scene {
     g.clear();
     // Top vignette
     g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.35, 0.35, 0, 0);
-    g.fillRect(0, 0, WIDTH, 60);
+    g.fillRect(0, 0, WIDTH, 30);
     // Bottom vignette
     g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.4, 0.4);
-    g.fillRect(0, HEIGHT - 60, WIDTH, 60);
+    g.fillRect(0, HEIGHT - 30, WIDTH, 30);
   }
 
   // Draw the baton ONCE in local coords (facing right, origin at player position).
   // Subsequent frames just reposition + flip — no per-frame Graphics work.
   private drawBatonShape(g: Phaser.GameObjects.Graphics) {
     const reach = GAME.meleeReach;
-    const handX = 10;
-    const handY = -2;
-    const tipX = reach + 6;
+    const handX = 5;
+    const handY = -1;
+    const tipX = reach + 3;
     const tipY = 0;
     const arcCx = reach * 0.6;
     const arcCy = 0;
@@ -957,26 +938,26 @@ export class GameScene extends Phaser.Scene {
     g.beginPath();
     g.arc(arcCx, arcCy, reach, -Math.PI / 2, Math.PI / 2, false);
     g.fillPath();
-    g.lineStyle(2, COLORS.gridCyan, 0.5);
+    g.lineStyle(1, COLORS.gridCyan, 0.5);
     g.strokePath();
 
     // Baton rod — three stacked thicknesses for the glow
-    g.lineStyle(8, COLORS.gridCyan, 0.28);
+    g.lineStyle(4, COLORS.gridCyan, 0.28);
     g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
-    g.lineStyle(4, COLORS.gridCyan, 1);
+    g.lineStyle(2, COLORS.gridCyan, 1);
     g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
-    g.lineStyle(2, 0xffffff, 1);
+    g.lineStyle(1, 0xffffff, 1);
     g.beginPath(); g.moveTo(handX, handY); g.lineTo(tipX, tipY); g.strokePath();
 
     // Tip flash
     g.fillStyle(COLORS.gridCyan, 0.5);
-    g.fillCircle(tipX, tipY, 7);
+    g.fillCircle(tipX, tipY, 4);
     g.fillStyle(0xffffff, 1);
-    g.fillCircle(tipX, tipY, 3);
+    g.fillCircle(tipX, tipY, 2);
 
     // Grip cap
     g.fillStyle(0x1a1428, 1);
-    g.fillCircle(handX - 2, handY, 3);
+    g.fillCircle(handX - 1, handY, 2);
   }
 
   private updateMeleeArc(now: number) {
