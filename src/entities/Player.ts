@@ -11,7 +11,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   meleeUntil = 0;
   lastMelee = 0;
   lastShot = 0;
-  private state: PlayerState = 'idle';
+  private playerState: PlayerState = 'idle';
   private stateUntil = 0;
   private hitUntil = 0;
 
@@ -42,8 +42,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   }
 
   private setPlayerState(next: PlayerState) {
-    if (this.state === next) return;
-    this.state = next;
+    if (this.playerState === next) return;
+    this.playerState = next;
     if (next === 'walk') {
       this.play('iris-walk', true);
     } else {
