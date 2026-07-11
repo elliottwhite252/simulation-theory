@@ -1,5 +1,5 @@
-export const WIDTH = 960;
-export const HEIGHT = 540;
+export const WIDTH = 480;
+export const HEIGHT = 270;
 
 export const COLORS = {
   // Sky
@@ -55,30 +55,30 @@ export const HEX = {
 };
 
 export const GAME = {
-  walkSpeed: 220,
-  bulletSpeed: 720,
+  walkSpeed: 110,
+  bulletSpeed: 360,
   shootCooldown: 220,
   meleeCooldown: 360,
   meleeDuration: 140,
-  meleeReach: 46,
+  meleeReach: 23,
   meleeDamage: 2,
   bulletDamage: 1,
   enemyHp: 2,
-  enemySpeed: 85,
+  enemySpeed: 43,
   // World/camera
-  worldWidth: 3840, // 4 screens wide
+  worldWidth: 1920, // 4 screens wide
   // Playable "floor" Y band — the player walks IN the street.
-  floorTop: 425,
-  floorBottom: 520,
+  floorTop: 213,
+  floorBottom: 260,
   // Visual back curb where the sidewalk meets the street.
-  groundY: 360,
+  groundY: 180,
   // Where parked cars sit, tucked tight against the back curb.
-  roadY: 380,
+  roadY: 190,
   // Car traffic
   carSpawnMin: 900,
   carSpawnMax: 2200,
-  carSpeedMin: 110,
-  carSpeedMax: 220,
+  carSpeedMin: 55,
+  carSpeedMax: 110,
 };
 
 export const CAR_PALETTE: Array<{ body: number; window: number; glow: number; light: number }> = [
@@ -97,9 +97,9 @@ export interface RoomDef {
 }
 
 export const ROOMS: RoomDef[] = [
-  { triggerX: 480,  cameraLockX: 480,  enemyCount: 3 },
-  { triggerX: 1440, cameraLockX: 1440, enemyCount: 4 },
-  { triggerX: 2400, cameraLockX: 2400, enemyCount: 5 },
+  { triggerX: 240,  cameraLockX: 240,  enemyCount: 3 },
+  { triggerX: 720,  cameraLockX: 720,  enemyCount: 4 },
+  { triggerX: 1200, cameraLockX: 1200, enemyCount: 5 },
 ];
 
 // World is `worldWidth` wide but the camera can scroll up to (worldWidth - WIDTH).

@@ -7,13 +7,14 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   iframesUntil = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, 'enemy');
+    super(scene, x, y, 'enemy-visor');
     scene.add.existing(this);
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;
     body.setAllowGravity(false);
-    this.setSize(26, 32);
-    this.setOffset(3, 6);
+    this.setScale(0.035);
+    body.setSize(280, 900);
+    body.setOffset(220, 500);
   }
 
   chase(targetX: number, targetY: number) {

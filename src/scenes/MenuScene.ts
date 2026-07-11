@@ -29,26 +29,26 @@ export class MenuScene extends Phaser.Scene {
 
   private drawSkylineProps() {
     const g = this.add.graphics();
-    drawAlley(g, 130, 2001);
-    drawHangingSign(g, 90, 1001, 0);
-    drawBillboard(g, 220, 1002);
-    drawLamp(g, 320, 1003, 0);
-    drawHangingSign(g, 420, 1004, 0);
-    drawStopSign(g, 520);
-    drawHangingSign(g, 600, 1005, 0);
-    drawAlley(g, 660, 2002);
-    drawLamp(g, 700, 1006, 0);
-    drawBillboard(g, 820, 1007);
-    drawHangingSign(g, 910, 1008, 0);
+    drawAlley(g, 65, 2001);
+    drawHangingSign(g, 45, 1001, 0);
+    drawBillboard(g, 110, 1002);
+    drawLamp(g, 160, 1003, 0);
+    drawHangingSign(g, 210, 1004, 0);
+    drawStopSign(g, 260);
+    drawHangingSign(g, 300, 1005, 0);
+    drawAlley(g, 330, 2002);
+    drawLamp(g, 350, 1006, 0);
+    drawBillboard(g, 410, 1007);
+    drawHangingSign(g, 455, 1008, 0);
   }
 
   private drawStreetDecals() {
     const g = this.add.graphics();
-    drawManhole(g, 260, 3001);
-    drawCone(g, 380, 3002);
-    drawCone(g, 402, 3003);
-    drawManhole(g, 580, 3004);
-    drawCone(g, 780, 3005);
+    drawManhole(g, 130, 3001);
+    drawCone(g, 190, 3002);
+    drawCone(g, 201, 3003);
+    drawManhole(g, 290, 3004);
+    drawCone(g, 390, 3005);
   }
 
   update(time: number) {
@@ -77,16 +77,16 @@ export class MenuScene extends Phaser.Scene {
 
     // Moon
     const cx = WIDTH * 0.78;
-    const cy = 90;
+    const cy = 45;
     g.fillStyle(COLORS.moonHalo, 0.18);
-    g.fillCircle(cx, cy, 60);
+    g.fillCircle(cx, cy, 30);
     g.fillStyle(COLORS.moonHalo, 0.3);
-    g.fillCircle(cx, cy, 42);
+    g.fillCircle(cx, cy, 21);
     g.fillStyle(COLORS.moon, 1);
-    g.fillCircle(cx, cy, 28);
+    g.fillCircle(cx, cy, 14);
     g.fillStyle(COLORS.moonHalo, 0.6);
-    g.fillCircle(cx + 10, cy - 4, 6);
-    g.fillCircle(cx - 8, cy + 7, 3);
+    g.fillCircle(cx + 5, cy - 2, 3);
+    g.fillCircle(cx - 4, cy + 3, 2);
   }
 
   private drawCityStrip() {
@@ -95,22 +95,22 @@ export class MenuScene extends Phaser.Scene {
     // Far layer
     this.drawBuildingRow(g, {
       seed: 1234,
-      minW: 32, maxW: 64,
-      minH: 60, maxH: 140,
+      minW: 16, maxW: 32,
+      minH: 30, maxH: 70,
       palette: [COLORS.bldgFarA, COLORS.bldgFarB, COLORS.bldgFarC],
       windowDensity: 0.5,
-      baseY: baseY - 4,
-      windowSize: 2,
+      baseY: baseY - 2,
+      windowSize: 1,
     });
     // Near layer
     this.drawBuildingRow(g, {
       seed: 9012,
-      minW: 60, maxW: 120,
-      minH: 110, maxH: 220,
+      minW: 30, maxW: 60,
+      minH: 55, maxH: 110,
       palette: [COLORS.bldgNearA, COLORS.bldgNearB, COLORS.bldgNearC, COLORS.bldgNearD],
       windowDensity: 0.7,
       baseY,
-      windowSize: 3,
+      windowSize: 2,
     });
   }
 
@@ -138,8 +138,8 @@ export class MenuScene extends Phaser.Scene {
       g.fillStyle(0xffffff, 0.06);
       g.fillRect(x, baseY - h, w, 1);
       // Windows
-      const padX = 4, padY = 6;
-      const gridX = windowSize + 3, gridY = windowSize + 4;
+      const padX = 2, padY = 3;
+      const gridX = windowSize + 2, gridY = windowSize + 2;
       for (let wy = padY; wy < h - padY; wy += gridY) {
         for (let wx = padX; wx < w - padX; wx += gridX) {
           if (rand() < windowDensity) {
@@ -150,20 +150,20 @@ export class MenuScene extends Phaser.Scene {
               : r < 0.93 ? COLORS.windowPink
               : COLORS.windowWhite;
             g.fillStyle(wc, rand() < 0.18 ? 1 : 0.7);
-            g.fillRect(x + wx, baseY - h + wy, 2, 2);
+            g.fillRect(x + wx, baseY - h + wy, 1, 1);
           }
         }
       }
-      x += w - Math.floor(rand() * 4);
+      x += w - Math.floor(rand() * 2);
     }
   }
 
   private drawParkedCars() {
     const g = this.add.graphics();
     const cars: Array<{ x: number; dir: 1 | -1; paletteIdx: number }> = [
-      { x: 160, dir: 1, paletteIdx: 0 }, // chrome
-      { x: 460, dir: -1, paletteIdx: 2 }, // cyan
-      { x: 740, dir: 1, paletteIdx: 1 }, // pink
+      { x: 80, dir: 1, paletteIdx: 0 }, // chrome
+      { x: 230, dir: -1, paletteIdx: 2 }, // cyan
+      { x: 370, dir: 1, paletteIdx: 1 }, // pink
     ];
     for (const c of cars) {
       drawCar(g, c.x, GAME.roadY, c.dir, CAR_PALETTE[c.paletteIdx]);
@@ -182,26 +182,26 @@ export class MenuScene extends Phaser.Scene {
     g.fillRect(0, HEIGHT - 4, WIDTH, 2);
     // Lane dashes down the middle of the street.
     g.fillStyle(COLORS.lane, 0.6);
-    const len = 34, gap = 50;
+    const len = 17, gap = 25;
     const laneY = Math.floor((GAME.floorTop + GAME.floorBottom) / 2) - 1;
     const step = len + gap;
     for (let x = 0; x < WIDTH; x += step) {
-      g.fillRect(x, laneY, len, 3);
+      g.fillRect(x, laneY, len, 2);
     }
   }
 
   private drawTitle() {
     const title = this.add
-      .text(WIDTH / 2, 70, 'SIMULATION\nTHEORY', {
+      .text(WIDTH / 2, 35, 'SIMULATION\nTHEORY', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '64px',
+        fontSize: '32px',
         color: HEX.text,
         align: 'center',
         stroke: HEX.textShadow,
-        strokeThickness: 4,
+        strokeThickness: 2,
       })
       .setOrigin(0.5, 0)
-      .setShadow(4, 4, HEX.textShadow, 0, true, true)
+      .setShadow(2, 2, HEX.textShadow, 0, true, true)
       .setDepth(10);
 
     this.tweens.add({
@@ -212,24 +212,24 @@ export class MenuScene extends Phaser.Scene {
       repeat: -1,
     });
 
-    const subY = 230;
+    const subY = 115;
     this.add
-      .rectangle(WIDTH / 2, subY, 460, 26, 0x05000d, 0.85)
+      .rectangle(WIDTH / 2, subY, 230, 13, 0x05000d, 0.85)
       .setStrokeStyle(1, 0xff2d95, 0.7)
       .setDepth(10);
     this.add
       .text(WIDTH / 2, subY, 'AN UNAUTHORIZED INTRUSION', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '18px',
+        fontSize: '9px',
         color: HEX.textShadow,
       })
       .setOrigin(0.5)
       .setDepth(11);
 
     const prompt = this.add
-      .text(WIDTH / 2, HEIGHT - 100, 'PRESS SPACE / CLICK TO JACK IN', {
+      .text(WIDTH / 2, HEIGHT - 50, 'PRESS SPACE / CLICK TO JACK IN', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '22px',
+        fontSize: '11px',
         color: HEX.text,
       })
       .setOrigin(0.5)
@@ -244,9 +244,9 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add
-      .text(WIDTH / 2, HEIGHT - 60, 'WASD / ARROWS  move      X  melee      Z / CLICK  shoot', {
+      .text(WIDTH / 2, HEIGHT - 30, 'WASD / ARROWS  move      X  melee      Z / CLICK  shoot', {
         fontFamily: 'Courier New, monospace',
-        fontSize: '15px',
+        fontSize: '8px',
         color: HEX.text,
       })
       .setOrigin(0.5)
@@ -254,9 +254,9 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     const muteText = this.add
-      .text(WIDTH - 16, HEIGHT - 16, this.muteLabel(), {
+      .text(WIDTH - 8, HEIGHT - 8, this.muteLabel(), {
         fontFamily: 'Courier New, monospace',
-        fontSize: '13px',
+        fontSize: '7px',
         color: HEX.text,
       })
       .setOrigin(1, 1)
@@ -291,7 +291,7 @@ export class MenuScene extends Phaser.Scene {
     for (let i = 0; i < count; i++) {
       out.push({
         x: Math.floor(rand() * WIDTH),
-        y: Math.floor(rand() * (GAME.groundY - 60)),
+        y: Math.floor(rand() * (GAME.groundY - 30)),
         base: 0.4 + rand() * 0.5,
         phase: rand() * Math.PI * 2,
         speed: 0.0015 + rand() * 0.002,

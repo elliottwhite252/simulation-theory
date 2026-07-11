@@ -1,21 +1,86 @@
 import Phaser from 'phaser';
 import { COLORS } from '../config';
 
-/**
- * Generates placeholder textures procedurally so we don't need external art for the MVP.
- */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
   }
 
+  preload() {
+    // Character sprites from Nano Banana — each PNG is 2752×1536 at native res.
+    // We load the walk cycle as a plain image; it becomes a real spritesheet in create()
+    // after the checkerboard background gets keyed out.
+    this.load.image('iris-idle', '/assets/iris-idle.png');
+    this.load.image('iris-shoot', '/assets/iris-shoot.png');
+    this.load.image('iris-melee', '/assets/iris-melee.png');
+    this.load.image('iris-hit', '/assets/iris-hit.png');
+    this.load.image('iris-walk-raw', '/assets/iris-walk.png');
+    this.load.image('enemy-visor', '/assets/enemy-visor.png');
+    this.load.image('omnicast-logo', '/assets/omnicast-logo.png');
+    this.load.image('bg-zone-1', '/assets/bg-zone-1.png');
+  }
+
   create() {
-    this.makePlayerTexture();
-    this.makePlayerShootTexture();
+    // Bullet and particle are still procedural.
     this.makeBulletTexture();
-    this.makeEnemyTexture();
     this.makeParticleTexture();
+
+    // Nano Banana bakes its "transparent" checkerboard as two neutral grays
+    // (~rgb(106,107,107) and ~rgb(174,174,174)) instead of using an alpha channel.
+    // We key them out at load time so every generated sprite just works.
+    (['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1'] as const)
+      .forEach((k) => this.keyOutCheckerboard(k));
+    this.keyOutCheckerboardSpritesheet('iris-walk-raw', 'iris-walk', 688, 1536);
+
+    // Backdrop is heavily downsampled (2752→~484 wide); nearest-neighbor produces
+    // vertical banding on fractional ratios. Linear filtering makes it smooth.
+    // Character sprites stay on nearest-neighbor so pixel-art details stay crisp.
+    this.textures.get('bg-zone-1').setFilter(Phaser.Textures.FilterMode.LINEAR);
+
+    this.anims.create({
+      key: 'iris-walk',
+      frames: this.anims.generateFrameNumbers('iris-walk', { start: 0, end: 3 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+
     this.scene.start('MenuScene');
+  }
+
+  private processCanvas(key: string): HTMLCanvasElement {
+    const src = this.textures.get(key).getSourceImage() as HTMLImageElement;
+    const w = src.width;
+    const h = src.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(src, 0, 0);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      // Reject anything that isn't near-neutral gray — protects colored pixels.
+      const spread = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(r - b));
+      if (spread > 6) continue;
+      const near106 = Math.abs(r - 106) < 14 && Math.abs(g - 106) < 14 && Math.abs(b - 106) < 14;
+      const near174 = Math.abs(r - 174) < 14 && Math.abs(g - 174) < 14 && Math.abs(b - 174) < 14;
+      if (near106 || near174) d[i + 3] = 0;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+  }
+
+  private keyOutCheckerboard(key: string) {
+    const canvas = this.processCanvas(key);
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
+  }
+
+  private keyOutCheckerboardSpritesheet(srcKey: string, dstKey: string, frameWidth: number, frameHeight: number) {
+    const canvas = this.processCanvas(srcKey);
+    this.textures.remove(srcKey);
+    this.textures.addSpriteSheet(dstKey, canvas as unknown as HTMLImageElement, { frameWidth, frameHeight });
   }
 
   private get palette() {
@@ -206,14 +271,97 @@ export class BootScene extends Phaser.Scene {
 
   private makeEnemyTexture() {
     const g = this.add.graphics();
-    const w = 32;
-    const h = 40;
-    g.fillStyle(COLORS.enemy, 1);
-    g.fillRect(0, 0, w, h);
-    g.fillStyle(COLORS.enemyCore, 1);
-    g.fillRect(8, 12, 4, 6);
-    g.fillRect(20, 12, 4, 6);
-    g.fillRect(10, 26, 12, 3);
+    const w = 28;
+    const h = 24;
+
+    // OmniCast sensor drone — quad-rotor with single cyan camera eye.
+    const BLADE = 0x4a4a5a;
+    const HUB = 0x1a1428;
+    const FRAME = 0x6a6a8a;
+    const BODY = 0x1a1428;
+    const BODY_HL = 0x3a3045;
+    const CYAN = 0x00f6ff;
+    const PUPIL = 0x0a0820;
+    const GLINT = 0xffffff;
+    const RED = 0xff2d3a;
+    const AMBER = 0xffd166;
+    const BRAND = 0xff2d95;
+    const ANTENNA = 0x4a4a5a;
+
+    // Top rotor blades (motion-blurred horizontal smears)
+    g.fillStyle(BLADE, 1);
+    g.fillRect(2, 0, 5, 1);
+    g.fillRect(21, 0, 5, 1);
+    g.fillRect(1, 1, 7, 1);
+    g.fillRect(20, 1, 7, 1);
+
+    // Top rotor hubs
+    g.fillStyle(HUB, 1);
+    g.fillRect(3, 2, 3, 2);
+    g.fillRect(22, 2, 3, 2);
+
+    // Frame arms (stair-stepped diagonals from hubs to body)
+    g.fillStyle(FRAME, 1);
+    g.fillRect(5, 4, 2, 1);
+    g.fillRect(7, 5, 2, 1);
+    g.fillRect(21, 4, 2, 1);
+    g.fillRect(19, 5, 2, 1);
+
+    // Antenna + red status LED on top of body
+    g.fillStyle(ANTENNA, 1);
+    g.fillRect(13, 5, 1, 1);
+    g.fillStyle(RED, 1);
+    g.fillRect(13, 4, 1, 1);
+
+    // Main body
+    g.fillStyle(BODY, 1);
+    g.fillRect(8, 6, 12, 10);
+
+    // Body top highlight strip
+    g.fillStyle(BODY_HL, 1);
+    g.fillRect(8, 7, 12, 1);
+
+    // Side LEDs (red left, amber right)
+    g.fillStyle(RED, 1);
+    g.fillRect(7, 8, 1, 1);
+    g.fillStyle(AMBER, 1);
+    g.fillRect(20, 8, 1, 1);
+
+    // Camera eye — cyan outer
+    g.fillStyle(CYAN, 1);
+    g.fillRect(10, 9, 8, 6);
+
+    // Pupil
+    g.fillStyle(PUPIL, 1);
+    g.fillRect(13, 11, 2, 2);
+
+    // White glint
+    g.fillStyle(GLINT, 1);
+    g.fillRect(13, 11, 1, 1);
+
+    // OmniCast brand stripe on lower body
+    g.fillStyle(BRAND, 1);
+    g.fillRect(8, 15, 12, 1);
+
+    // Bottom frame arms
+    g.fillStyle(FRAME, 1);
+    g.fillRect(7, 17, 2, 1);
+    g.fillRect(5, 18, 2, 1);
+    g.fillRect(19, 17, 2, 1);
+    g.fillRect(21, 18, 2, 1);
+
+    // Bottom rotor hubs
+    g.fillStyle(HUB, 1);
+    g.fillRect(3, 19, 3, 2);
+    g.fillRect(22, 19, 3, 2);
+
+    // Bottom rotor blades
+    g.fillStyle(BLADE, 1);
+    g.fillRect(2, 21, 5, 1);
+    g.fillRect(21, 21, 5, 1);
+    g.fillRect(1, 22, 7, 1);
+    g.fillRect(20, 22, 7, 1);
+
     g.generateTexture('enemy', w, h);
     g.destroy();
   }
