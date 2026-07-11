@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, GAME } from './config';
+import { COLORS } from './config';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
@@ -20,7 +20,7 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { x: 0, y: GAME.gravity },
+      gravity: { x: 0, y: 0 },
       debug: false,
     },
   },

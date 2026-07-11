@@ -1,46 +1,10 @@
 import Phaser from 'phaser';
-import { WIDTH, HEIGHT, COLORS, HEX, GAME, ROOMS, MAX_CAMERA_X, CAR_PALETTE } from '../config';
+import { WIDTH, HEIGHT, HEX, GAME, ROOMS, MAX_CAMERA_X, COLORS } from '../config';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
-import {
-  drawLamp, drawHangingSign, drawBillboard, drawStopSign,
-  drawCone, drawManhole, drawAlley, drawCar,
-} from '../render/props';
 import { getSynth } from '../audio/synth';
 
 type Phase = 'roaming' | 'locked' | 'cleared' | 'won' | 'gameover';
-
-interface Building {
-  x: number;
-  w: number;
-  h: number;
-  color: number;
-  windows: Array<{ x: number; y: number; color: number; bright: boolean }>;
-}
-
-interface Star {
-  x: number;
-  y: number;
-  base: number; // base alpha
-  phase: number; // twinkle phase
-  speed: number;
-}
-
-interface ParkedCar {
-  x: number; // world X — cars are now static parked decorations
-  yOffset: number;
-  paletteIdx: number;
-  dir: 1 | -1;
-}
-
-interface StreetProp {
-  x: number; // world X
-  type: 'lamp' | 'hangingSign' | 'billboard' | 'stopSign' | 'cone' | 'manhole' | 'alley';
-  seed: number;
-}
-
-const FAR_STRIP = 1200;
-const NEAR_STRIP = 1000;
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
@@ -66,15 +30,6 @@ export class GameScene extends Phaser.Scene {
   // Nano Banana painted backdrop — one wide image covering the whole world.
   private bgLayer!: Phaser.GameObjects.TileSprite;
   private foregroundNeon!: Phaser.GameObjects.Graphics;
-
-  private parkedCars: ParkedCar[] = [];
-
-  private streetProps: StreetProp[] = [];
-
-  // Skyline + stars data (generated once in create()).
-  private farCity: Building[] = [];
-  private nearCity: Building[] = [];
-  private stars: Star[] = [];
 
   // HUD (fixed to camera).
   private scoreText!: Phaser.GameObjects.Text;
@@ -113,27 +68,6 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, GAME.worldWidth, HEIGHT);
     this.cameras.main.setBounds(0, 0, GAME.worldWidth, HEIGHT);
 
-    // Generate procedural city + stars (deterministic via seeded RNG so each run looks consistent).
-    this.farCity = this.generateBuildings({
-      seed: 1337,
-      stripWidth: FAR_STRIP,
-      minW: 16, maxW: 32,
-      minH: 35, maxH: 80,
-      palette: [COLORS.bldgFarA, COLORS.bldgFarB, COLORS.bldgFarC],
-      windowDensity: 0.55,
-      windowSize: 1,
-    });
-    this.nearCity = this.generateBuildings({
-      seed: 4242,
-      stripWidth: NEAR_STRIP,
-      minW: 28, maxW: 60,
-      minH: 55, maxH: 120,
-      palette: [COLORS.bldgNearA, COLORS.bldgNearB, COLORS.bldgNearC, COLORS.bldgNearD],
-      windowDensity: 0.7,
-      windowSize: 2,
-    });
-    this.stars = this.generateStars(110);
-
     // Painted city backdrop — tiled across the full world width so it scrolls
     // seamlessly as the camera moves. Native image height (1536) is scaled to the
     // canvas height (270), then repeats horizontally.
@@ -148,9 +82,6 @@ export class GameScene extends Phaser.Scene {
     // Foreground vignette + scanlines stay procedural — cheap CRT overlay.
     this.foregroundNeon = this.add.graphics().setScrollFactor(0).setDepth(-10);
     this.worldLayer.add([this.bgLayer, this.foregroundNeon]);
-
-    this.streetProps = this.generateStreetProps();
-    this.parkedCars = this.generateParkedCars();
 
     // Player
     this.player = new Player(this, 60, (GAME.floorTop + GAME.floorBottom) / 2);
@@ -646,270 +577,6 @@ export class GameScene extends Phaser.Scene {
     this.hudLayer.add([title, sub, hint]);
   }
 
-  // --------------------------- city / sky generation ---------------------------
-  private generateBuildings(opts: {
-    seed: number;
-    stripWidth: number;
-    minW: number; maxW: number;
-    minH: number; maxH: number;
-    palette: number[];
-    windowDensity: number;
-    windowSize: number;
-  }): Building[] {
-    const rand = mulberry32(opts.seed);
-    const out: Building[] = [];
-    let x = 0;
-    while (x < opts.stripWidth) {
-      const w = Math.floor(opts.minW + rand() * (opts.maxW - opts.minW));
-      const h = Math.floor(opts.minH + rand() * (opts.maxH - opts.minH));
-      const color = opts.palette[Math.floor(rand() * opts.palette.length)];
-      const windows: Building['windows'] = [];
-      const padX = 2, padY = 3;
-      const gridX = opts.windowSize + 2;
-      const gridY = opts.windowSize + 2;
-      for (let wy = padY; wy < h - padY; wy += gridY) {
-        for (let wx = padX; wx < w - padX; wx += gridX) {
-          if (rand() < opts.windowDensity) {
-            const r = rand();
-            const wc =
-              r < 0.5 ? COLORS.windowWarm
-              : r < 0.78 ? COLORS.windowCyan
-              : r < 0.93 ? COLORS.windowPink
-              : COLORS.windowWhite;
-            windows.push({ x: wx, y: wy, color: wc, bright: rand() < 0.18 });
-          }
-        }
-      }
-      out.push({ x, w, h, color, windows });
-      x += w - Math.floor(rand() * 2); // slight overlap so the skyline has no gaps
-    }
-    return out;
-  }
-
-  private generateStars(count: number): Star[] {
-    const rand = mulberry32(99);
-    const out: Star[] = [];
-    for (let i = 0; i < count; i++) {
-      out.push({
-        x: Math.floor(rand() * WIDTH),
-        y: Math.floor(rand() * (GAME.groundY - 20)),
-        base: 0.4 + rand() * 0.5,
-        phase: rand() * Math.PI * 2,
-        speed: 0.0015 + rand() * 0.002,
-      });
-    }
-    return out;
-  }
-
-  // --------------------------- drawing ---------------------------
-  private drawSky() {
-    const g = this.skyLayer;
-    g.clear();
-    g.fillGradientStyle(
-      COLORS.skyTop,
-      COLORS.skyTop,
-      COLORS.skyHorizon,
-      COLORS.skyHorizon,
-      1,
-    );
-    g.fillRect(0, 0, WIDTH, GAME.groundY);
-  }
-
-  private drawStars(time: number) {
-    const g = this.starLayer;
-    g.clear();
-    for (const s of this.stars) {
-      const a = Phaser.Math.Clamp(
-        s.base + Math.sin(time * s.speed + s.phase) * 0.35,
-        0.05,
-        1,
-      );
-      g.fillStyle(COLORS.star, a);
-      g.fillRect(s.x, s.y, 1, 1);
-    }
-  }
-
-  private drawMoon() {
-    const g = this.moonLayer;
-    g.clear();
-    // Moon drifts very slightly with camera for subtle parallax.
-    const cx = WIDTH * 0.68 - this.cameras.main.scrollX * 0.04;
-    const cy = 55;
-    g.fillStyle(COLORS.moonHalo, 0.18);
-    g.fillCircle(cx, cy, 29);
-    g.fillStyle(COLORS.moonHalo, 0.3);
-    g.fillCircle(cx, cy, 20);
-    g.fillStyle(COLORS.moon, 1);
-    g.fillCircle(cx, cy, 13);
-    // Crater shadow for character.
-    g.fillStyle(COLORS.moonHalo, 0.6);
-    g.fillCircle(cx + 4, cy - 2, 2);
-    g.fillCircle(cx - 3, cy + 3, 2);
-  }
-
-  private drawCity(
-    g: Phaser.GameObjects.Graphics,
-    city: Building[],
-    stripWidth: number,
-    parallaxFactor: number,
-    baseY: number,
-  ) {
-    g.clear();
-    const offset = (this.cameras.main.scrollX * parallaxFactor) % stripWidth;
-    // Draw two passes so we tile seamlessly.
-    for (let pass = 0; pass < 2; pass++) {
-      const passShift = pass * stripWidth - offset;
-      for (const b of city) {
-        const bx = b.x + passShift;
-        if (bx + b.w < -10 || bx > WIDTH + 10) continue;
-        // Building body
-        g.fillStyle(b.color, 1);
-        g.fillRect(bx, baseY - b.h, b.w, b.h);
-        // Top highlight (1px lighter line)
-        g.fillStyle(0xffffff, 0.06);
-        g.fillRect(bx, baseY - b.h, b.w, 1);
-        // Windows
-        for (const w of b.windows) {
-          g.fillStyle(w.color, w.bright ? 1 : 0.65);
-          g.fillRect(bx + w.x, baseY - b.h + w.y, 1, 1);
-        }
-      }
-    }
-  }
-
-  private drawStreet() {
-    const g = this.streetLayer;
-    g.clear();
-    const horizonY = GAME.groundY;
-
-    // Asphalt covers from the back curb to the bottom of the canvas — one big street.
-    g.fillStyle(COLORS.street, 1);
-    g.fillRect(0, horizonY, WIDTH, HEIGHT - horizonY);
-
-    // Subtle fog at the back of the street for that neon-bleed glow.
-    g.fillStyle(COLORS.streetEdge, 0.5);
-    g.fillRect(0, horizonY, WIDTH, 11);
-
-    // Back curb (pink neon) — separates sidewalk/buildings from the street.
-    g.fillStyle(COLORS.curbNeon, 0.95);
-    g.fillRect(0, horizonY - 1, WIDTH, 1);
-    g.fillStyle(COLORS.curbNeon, 0.25);
-    g.fillRect(0, horizonY - 2, WIDTH, 1);
-
-    // Front curb (cyan) at the bottom of the canvas.
-    g.fillStyle(COLORS.gridCyan, 0.6);
-    g.fillRect(0, HEIGHT - 2, WIDTH, 1);
-
-    // Lane dashes down the middle of the street where the player walks.
-    const scrollX = this.cameras.main.scrollX;
-    const laneY = Math.floor((GAME.floorTop + GAME.floorBottom) / 2) - 1;
-    g.fillStyle(COLORS.lane, 0.6);
-    const len = 17;
-    const gap = 25;
-    const step = len + gap;
-    const startWorldX = Math.floor(scrollX / step) * step;
-    for (let wx = startWorldX; wx < scrollX + WIDTH + step; wx += step) {
-      g.fillRect(wx - scrollX, laneY, len, 2);
-    }
-  }
-
-  // --------------------------- street props ---------------------------
-  private generateStreetProps(): StreetProp[] {
-    const props: StreetProp[] = [];
-
-    // Pass 1: sidewalk-level props (lamps, signs, billboards, stop signs).
-    const sw = mulberry32(8888);
-    let x = 30;
-    while (x < GAME.worldWidth) {
-      const r = sw();
-      let type: StreetProp['type'];
-      if (r < 0.40) type = 'lamp';
-      else if (r < 0.72) type = 'hangingSign';
-      else if (r < 0.90) type = 'billboard';
-      else type = 'stopSign';
-      props.push({ x: Math.floor(x), type, seed: Math.floor(sw() * 1e9) });
-      x += 35 + sw() * 65;
-    }
-
-    // Pass 2: rare alleys punched through the skyline (every few screens).
-    const al = mulberry32(3333);
-    x = 175 + al() * 150;
-    while (x < GAME.worldWidth - 100) {
-      props.push({ x: Math.floor(x), type: 'alley', seed: Math.floor(al() * 1e9) });
-      x += 360 + al() * 260;
-    }
-
-    // Pass 3: street-level decals (manholes + traffic cones, sometimes clustered).
-    const rd = mulberry32(7777);
-    x = 60;
-    while (x < GAME.worldWidth) {
-      const t = rd();
-      if (t < 0.55) {
-        props.push({ x: Math.floor(x), type: 'manhole', seed: Math.floor(rd() * 1e9) });
-        x += 90 + rd() * 120;
-      } else {
-        const clusterSize = 1 + Math.floor(rd() * 3); // 1–3 cones in a row
-        for (let i = 0; i < clusterSize; i++) {
-          props.push({
-            x: Math.floor(x + i * 11),
-            type: 'cone',
-            seed: Math.floor(rd() * 1e9),
-          });
-        }
-        x += 20 + clusterSize * 11 + rd() * 100;
-      }
-    }
-
-    return props;
-  }
-
-  private drawStreetProps(time: number) {
-    const g = this.propsLayer;
-    g.clear();
-    const scrollX = this.cameras.main.scrollX;
-    for (const p of this.streetProps) {
-      const sx = p.x - scrollX;
-      if (sx < -60 || sx > WIDTH + 60) continue;
-      switch (p.type) {
-        case 'lamp': drawLamp(g, sx, p.seed, time); break;
-        case 'hangingSign': drawHangingSign(g, sx, p.seed, time); break;
-        case 'billboard': drawBillboard(g, sx, p.seed); break;
-        case 'stopSign': drawStopSign(g, sx); break;
-        case 'cone': drawCone(g, sx, p.seed); break;
-        case 'manhole': drawManhole(g, sx, p.seed); break;
-        case 'alley': drawAlley(g, sx, p.seed); break;
-      }
-    }
-  }
-
-  // --------------------------- parked cars ---------------------------
-  private generateParkedCars(): ParkedCar[] {
-    const rand = mulberry32(5555);
-    const cars: ParkedCar[] = [];
-    let x = 110;
-    while (x < GAME.worldWidth) {
-      cars.push({
-        x: Math.floor(x),
-        yOffset: Math.floor(rand() * 4 - 2),
-        paletteIdx: Math.floor(rand() * CAR_PALETTE.length),
-        dir: rand() < 0.5 ? 1 : -1,
-      });
-      x += 100 + rand() * 110;
-    }
-    return cars;
-  }
-
-  private drawParkedCars() {
-    const g = this.carLayer;
-    g.clear();
-    const scrollX = this.cameras.main.scrollX;
-    for (const c of this.parkedCars) {
-      const sx = c.x - scrollX;
-      if (sx < -80 || sx > WIDTH + 80) continue;
-      drawCar(g, sx, GAME.roadY + c.yOffset, c.dir, CAR_PALETTE[c.paletteIdx]);
-    }
-  }
-
   private drawForegroundNeon() {
     // Subtle vignette/scanlines for that CRT vibe.
     const g = this.foregroundNeon;
@@ -985,14 +652,3 @@ export class GameScene extends Phaser.Scene {
   }
 }
 
-// Tiny seeded PRNG so the city looks consistent across runs.
-function mulberry32(seed: number) {
-  let a = seed >>> 0;
-  return function () {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
