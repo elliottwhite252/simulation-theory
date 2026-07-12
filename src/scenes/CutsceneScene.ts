@@ -2,10 +2,9 @@ import Phaser from 'phaser';
 import { WIDTH, HEIGHT, COLORS, HEX } from '../config';
 
 export interface CutscenePanel {
-  // Draw the panel content into the area (0,0)–(w,h).
-  // The scene wraps the draw call so the content is clipped to the panel box.
-  draw: (g: Phaser.GameObjects.Graphics, w: number, h: number) => void;
-  // One or more dialog lines that appear under the panel, advanced with SPACE.
+  // Nano Banana painted texture rendered full-bleed behind the dialog.
+  textureKey: string;
+  // Dialog lines advanced with SPACE.
   lines: string[];
 }
 
@@ -14,10 +13,8 @@ export interface CutsceneConfig {
   nextScene: string;
 }
 
-const PANEL_PADDING = 12;
-const PANEL_TOP = 20;
 const DIALOG_HEIGHT = 65;
-const PANEL_BOTTOM = HEIGHT - DIALOG_HEIGHT - 10;
+const DIALOG_PADDING = 12;
 
 export class CutsceneScene extends Phaser.Scene {
   private config!: CutsceneConfig;
@@ -27,8 +24,7 @@ export class CutsceneScene extends Phaser.Scene {
   private typewriterAccum = 0;
   private readonly CHAR_INTERVAL = 28; // ms per character
 
-  private panelG!: Phaser.GameObjects.Graphics;
-  private panelFrame!: Phaser.GameObjects.Graphics;
+  private panelImage!: Phaser.GameObjects.Image;
   private dialogText!: Phaser.GameObjects.Text;
   private dialogBox!: Phaser.GameObjects.Graphics;
   private continuePrompt!: Phaser.GameObjects.Text;
@@ -46,46 +42,51 @@ export class CutsceneScene extends Phaser.Scene {
   }
 
   create() {
-    // Solid black backdrop for the letterbox feel.
+    // Solid black backdrop behind everything so any letterboxing reads clean.
     this.add.rectangle(0, 0, WIDTH, HEIGHT, 0x000000).setOrigin(0, 0);
 
-    // Panel area
-    this.panelG = this.add.graphics();
-    this.panelFrame = this.add.graphics();
+    // Painted panel image — full-bleed, texture swapped per panel.
+    this.panelImage = this.add
+      .image(WIDTH / 2, HEIGHT / 2, this.config.panels[0].textureKey)
+      .setOrigin(0.5, 0.5)
+      .setDepth(0);
 
-    // Dialog box at the bottom
-    this.dialogBox = this.add.graphics();
+    // Dialog box overlays the bottom of the image.
     const dialogY = HEIGHT - DIALOG_HEIGHT - 5;
-    this.dialogBox.fillStyle(0x05000d, 0.95);
-    this.dialogBox.fillRect(PANEL_PADDING, dialogY, WIDTH - PANEL_PADDING * 2, DIALOG_HEIGHT);
+    this.dialogBox = this.add.graphics().setDepth(10);
+    this.dialogBox.fillStyle(0x05000d, 0.9);
+    this.dialogBox.fillRect(DIALOG_PADDING, dialogY, WIDTH - DIALOG_PADDING * 2, DIALOG_HEIGHT);
     this.dialogBox.lineStyle(1, COLORS.gridCyan, 0.7);
-    this.dialogBox.strokeRect(PANEL_PADDING, dialogY, WIDTH - PANEL_PADDING * 2, DIALOG_HEIGHT);
+    this.dialogBox.strokeRect(DIALOG_PADDING, dialogY, WIDTH - DIALOG_PADDING * 2, DIALOG_HEIGHT);
 
     this.dialogText = this.add
-      .text(PANEL_PADDING + 10, dialogY + 11, '', {
+      .text(DIALOG_PADDING + 10, dialogY + 11, '', {
         fontFamily: 'Courier New, monospace',
         fontSize: '9px',
         color: HEX.text,
-        wordWrap: { width: WIDTH - PANEL_PADDING * 2 - 20 },
+        wordWrap: { width: WIDTH - DIALOG_PADDING * 2 - 20 },
       })
-      .setLineSpacing(2);
+      .setLineSpacing(2)
+      .setDepth(11);
 
     this.continuePrompt = this.add
-      .text(WIDTH - PANEL_PADDING - 6, HEIGHT - 12, '▶ space', {
+      .text(WIDTH - DIALOG_PADDING - 6, HEIGHT - 12, '▶ space', {
         fontFamily: 'Courier New, monospace',
         fontSize: '7px',
         color: HEX.text,
       })
       .setOrigin(1, 1)
-      .setAlpha(0.55);
+      .setAlpha(0.55)
+      .setDepth(11);
 
     this.add
-      .text(PANEL_PADDING, 9, 'ESC skips', {
+      .text(DIALOG_PADDING, 9, 'ESC skips', {
         fontFamily: 'Courier New, monospace',
         fontSize: '6px',
         color: HEX.text,
       })
-      .setAlpha(0.35);
+      .setAlpha(0.35)
+      .setDepth(11);
 
     // Input
     this.input.keyboard?.on('keydown-SPACE', () => this.advance());
@@ -115,23 +116,13 @@ export class CutsceneScene extends Phaser.Scene {
   }
 
   private renderPanel() {
-    this.panelG.clear();
-    this.panelFrame.clear();
-
     const panel = this.config.panels[this.panelIdx];
-    const innerW = WIDTH - PANEL_PADDING * 2;
-    const innerH = PANEL_BOTTOM - PANEL_TOP;
-
-    // Translate so the panel's draw function works in (0,0)–(w,h) coords.
-    this.panelG.translateCanvas(PANEL_PADDING, PANEL_TOP);
-    panel.draw(this.panelG, innerW, innerH);
-    this.panelG.translateCanvas(-PANEL_PADDING, -PANEL_TOP);
-
-    // Neon frame around the panel
-    this.panelFrame.lineStyle(2, COLORS.gridPink, 0.85);
-    this.panelFrame.strokeRect(PANEL_PADDING, PANEL_TOP, innerW, innerH);
-    this.panelFrame.lineStyle(1, COLORS.gridCyan, 0.35);
-    this.panelFrame.strokeRect(PANEL_PADDING - 3, PANEL_TOP - 3, innerW + 6, innerH + 6);
+    this.panelImage.setTexture(panel.textureKey);
+    // Fit-width scaling — with 2752×1536 source and 480×270 canvas, the aspect
+    // ratios match within 0.1%, so this fills the whole screen edge-to-edge.
+    const src = this.textures.get(panel.textureKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const scale = WIDTH / src.width;
+    this.panelImage.setScale(scale);
   }
 
   private advance() {
