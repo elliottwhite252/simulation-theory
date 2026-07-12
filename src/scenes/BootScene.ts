@@ -19,6 +19,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('omnicast-logo', '/assets/omnicast-logo.png');
     this.load.image('bg-zone-1', '/assets/bg-zone-1.png');
     this.load.image('bg-menu', '/assets/bg-menu.png');
+    this.load.image('cutscene-1', '/assets/cutscene-1.png');
+    this.load.image('cutscene-2', '/assets/cutscene-2.png');
+    this.load.image('cutscene-3', '/assets/cutscene-3.png');
   }
 
   create() {
@@ -29,7 +32,7 @@ export class BootScene extends Phaser.Scene {
     // Nano Banana bakes its "transparent" checkerboard as two neutral grays
     // (~rgb(106,107,107) and ~rgb(174,174,174)) instead of using an alpha channel.
     // We key them out at load time so every generated sprite just works.
-    (['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-menu'] as const)
+    (['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-menu', 'cutscene-1', 'cutscene-2', 'cutscene-3'] as const)
       .forEach((k) => this.keyOutCheckerboard(k));
     this.keyOutCheckerboardSpritesheet('iris-walk-raw', 'iris-walk', 688, 1536);
 
@@ -38,6 +41,9 @@ export class BootScene extends Phaser.Scene {
     // Character sprites stay on nearest-neighbor so pixel-art details stay crisp.
     this.textures.get('bg-zone-1').setFilter(Phaser.Textures.FilterMode.LINEAR);
     this.textures.get('bg-menu').setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures.get('cutscene-1').setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures.get('cutscene-2').setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures.get('cutscene-3').setFilter(Phaser.Textures.FilterMode.LINEAR);
 
     this.anims.create({
       key: 'iris-walk',
