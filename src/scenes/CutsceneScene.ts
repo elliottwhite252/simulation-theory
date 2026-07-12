@@ -54,7 +54,7 @@ export class CutsceneScene extends Phaser.Scene {
     // Dialog box overlays the bottom of the image.
     const dialogY = HEIGHT - DIALOG_HEIGHT - 5;
     this.dialogBox = this.add.graphics().setDepth(10);
-    this.dialogBox.fillStyle(0x05000d, 0.9);
+    this.dialogBox.fillStyle(0x05000d, 0.65);
     this.dialogBox.fillRect(DIALOG_PADDING, dialogY, WIDTH - DIALOG_PADDING * 2, DIALOG_HEIGHT);
     this.dialogBox.lineStyle(1, COLORS.gridCyan, 0.7);
     this.dialogBox.strokeRect(DIALOG_PADDING, dialogY, WIDTH - DIALOG_PADDING * 2, DIALOG_HEIGHT);
