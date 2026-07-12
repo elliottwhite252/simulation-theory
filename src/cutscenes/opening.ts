@@ -29,5 +29,14 @@ export const OPENING_CUTSCENE: CutsceneConfig = {
         "I'll listen now.",
       ],
     },
+    {
+      textureKey: 'cutscene-4',
+      lines: [
+        "It's all here. The tower. The plan. Everything.",
+        'Six frequencies. The last free voices. Midnight.',
+        'And OmniCast owns every screen. Including the ones watching me.',
+        "Then let's give them something to watch.",
+      ],
+    },
   ],
 };
