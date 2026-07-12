@@ -23,18 +23,30 @@ export class BootScene extends Phaser.Scene {
     this.load.image('cutscene-2', '/assets/cutscene-2.png');
     this.load.image('cutscene-3', '/assets/cutscene-3.png');
     this.load.image('cutscene-4', '/assets/cutscene-4.png');
+    // Boss sprite. Missing until Nano Banana result is saved — BroadcastVan
+    // falls back to enemy-visor texture if this 404s. Suppress the load-error
+    // event so a missing file doesn't spam the console.
+    this.load.image('boss-broadcast-van', '/assets/boss-broadcast-van.png');
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      if (file.key === 'boss-broadcast-van') {
+        console.info('[boot] boss-broadcast-van.png not yet in assets — using visor fallback');
+      }
+    });
   }
 
   create() {
-    // Bullet and particle stay procedural — tiny primitives, no need for PNGs.
+    // Bullet, particle, and boss broadcast wave stay procedural — tiny primitives.
     this.makeBulletTexture();
     this.makeParticleTexture();
+    this.makeBroadcastWaveTexture();
 
     // Nano Banana bakes its "transparent" checkerboard as two neutral grays
     // (~rgb(106,107,107) and ~rgb(174,174,174)) instead of using an alpha channel.
     // We key them out at load time so every generated sprite just works.
-    (['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-menu', 'cutscene-1', 'cutscene-2', 'cutscene-3', 'cutscene-4'] as const)
-      .forEach((k) => this.keyOutCheckerboard(k));
+    const keyable = ['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-menu', 'cutscene-1', 'cutscene-2', 'cutscene-3', 'cutscene-4', 'boss-broadcast-van'] as const;
+    keyable.forEach((k) => {
+      if (this.textures.exists(k)) this.keyOutCheckerboard(k);
+    });
     this.keyOutCheckerboardSpritesheet('iris-walk-raw', 'iris-walk', 688, 1536);
 
     // Backdrop is heavily downsampled (2752→~484 wide); nearest-neighbor produces
@@ -110,6 +122,27 @@ export class BootScene extends Phaser.Scene {
     g.fillStyle(0xffffff, 1);
     g.fillRect(0, 0, 3, 3);
     g.generateTexture('px', 3, 3);
+    g.destroy();
+  }
+
+  // Boss broadcast-wave projectile — cyan+pink sonic ring, hollow center so
+  // it visually reads as an expanding sound wave rather than a solid blob.
+  private makeBroadcastWaveTexture() {
+    const g = this.add.graphics();
+    // Outer cyan halo
+    g.fillStyle(0x00f6ff, 0.35);
+    g.fillEllipse(16, 8, 32, 14);
+    // Inner pink ring
+    g.fillStyle(0xff2d95, 0.85);
+    g.fillEllipse(16, 8, 24, 10);
+    // Hollow dark center — the "ring" effect
+    g.fillStyle(0x05000d, 1);
+    g.fillEllipse(16, 8, 14, 5);
+    // Bright leading edge
+    g.fillStyle(0xffffff, 1);
+    g.fillRect(2, 7, 3, 2);
+    g.fillRect(27, 7, 3, 2);
+    g.generateTexture('broadcast-wave', 32, 16);
     g.destroy();
   }
 }
