@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { WIDTH, HEIGHT, HEX, GAME, ROOMS, MAX_CAMERA_X, COLORS } from '../config';
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
+import { BroadcastVan } from '../entities/BroadcastVan';
 import { getSynth } from '../audio/synth';
 
 type Phase = 'roaming' | 'locked' | 'cleared' | 'won' | 'gameover';
@@ -37,6 +38,13 @@ export class GameScene extends Phaser.Scene {
   private roomText!: Phaser.GameObjects.Text;
   private goText!: Phaser.GameObjects.Text;
   private muteText?: Phaser.GameObjects.Text;
+
+  // Boss fight state — populated when a boss room locks.
+  private boss?: BroadcastVan;
+  private broadcastWaves!: Phaser.Physics.Arcade.Group;
+  private bossBarBg?: Phaser.GameObjects.Graphics;
+  private bossBarFill?: Phaser.GameObjects.Graphics;
+  private bossLabel?: Phaser.GameObjects.Text;
 
   // Melee visualization
   private meleeArc!: Phaser.GameObjects.Graphics;
@@ -120,6 +128,11 @@ export class GameScene extends Phaser.Scene {
       maxSize: 48,
     });
     this.enemies = this.physics.add.group({ classType: Enemy });
+    // Boss projectiles — cyan/pink sonic rings the Broadcast Van fires.
+    this.broadcastWaves = this.physics.add.group({
+      classType: Phaser.Physics.Arcade.Sprite,
+      maxSize: 8,
+    });
 
     this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => {
       this.bulletHitEnemy(
@@ -129,6 +142,9 @@ export class GameScene extends Phaser.Scene {
     });
     this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => {
       this.enemyTouchPlayer(enemy as Enemy);
+    });
+    this.physics.add.overlap(this.player, this.broadcastWaves, (_p, wave) => {
+      this.broadcastWaveHitPlayer(wave as Phaser.Physics.Arcade.Sprite);
     });
 
     // Input
@@ -191,14 +207,23 @@ export class GameScene extends Phaser.Scene {
 
     this.player.walk(vx * GAME.walkSpeed, vy * GAME.walkSpeed);
 
-    // Enemy AI
+    // Enemy AI — bosses skip chase (they hold position) but still update flash.
     this.enemies.children.iterate((e) => {
       const enemy = e as Enemy;
       if (!enemy.active) return true;
-      enemy.chase(this.player.x, this.player.y);
+      if (!(enemy instanceof BroadcastVan)) {
+        enemy.chase(this.player.x, this.player.y);
+      }
       enemy.updateFlash(time);
       return true;
     });
+
+    // Boss update + HP bar
+    if (this.boss && this.boss.active) {
+      const decision = this.boss.updateBoss(time, this.player.x);
+      if (decision.fireBroadcast) this.fireBroadcastWave();
+      this.updateBossHUD();
+    }
 
     // Bullet recycling
     this.bullets.children.iterate((b) => {
@@ -261,7 +286,7 @@ export class GameScene extends Phaser.Scene {
   private bulletHitEnemy(bullet: Phaser.Physics.Arcade.Sprite, enemy: Enemy) {
     if (!bullet.active || !enemy.active) return;
     bullet.disableBody(true, true);
-    this.damageEnemy(enemy, GAME.bulletDamage);
+    this.damageEnemy(enemy, GAME.bulletDamage, bullet.x);
   }
 
   private handleMeleeHits(now: number) {
@@ -277,19 +302,36 @@ export class GameScene extends Phaser.Scene {
       if (Math.hypot(dx, dy) < reach) {
         const body = enemy.body as Phaser.Physics.Arcade.Body;
         body.setVelocity(this.player.facing * 130, -20);
-        this.damageEnemy(enemy, GAME.meleeDamage);
+        this.damageEnemy(enemy, GAME.meleeDamage, this.player.x);
       }
       return true;
     });
   }
 
-  private damageEnemy(enemy: Enemy, dmg: number) {
+  private damageEnemy(enemy: Enemy, dmg: number, attackerX: number) {
     const now = this.time.now;
-    const killed = enemy.takeHit(dmg, now);
-    this.spawnBurst(enemy.x, enemy.y, COLORS.enemy, killed ? 16 : 6);
+    let killed = false;
+    if (enemy instanceof BroadcastVan) {
+      // Positional-weakness routing — only rear hits register.
+      killed = enemy.takeHitFrom(dmg, now, attackerX);
+      // Purple burst on blocked (no damage), pink on real damage, gold on kill.
+      const color = killed ? 0xffd166 : (enemy.hp === BroadcastVan.MAX_HP || now < enemy.iframesUntil - 60 ? 0x00f6ff : 0xff2d95);
+      const count = killed ? 24 : 4;
+      this.spawnBurst(enemy.x, enemy.y, color, count);
+    } else {
+      killed = enemy.takeHit(dmg, now);
+      this.spawnBurst(enemy.x, enemy.y, COLORS.enemy, killed ? 16 : 6);
+    }
     if (killed) {
+      if (enemy === this.boss) {
+        this.hideBossHUD();
+        this.boss = undefined;
+        this.cameras.main.flash(240, 255, 45, 149);
+        this.score += 2000;
+      } else {
+        this.score += 100;
+      }
       enemy.destroy();
-      this.score += 100;
     }
   }
 
@@ -354,7 +396,111 @@ export class GameScene extends Phaser.Scene {
     });
     this.updateRoomLabel();
     this.flashLockBanner();
-    this.spawnWave(room);
+    if (room.bossType === 'broadcastVan') {
+      this.spawnBoss(room);
+    } else {
+      this.spawnWave(room);
+    }
+  }
+
+  private spawnBoss(room: (typeof ROOMS)[number]) {
+    // Boss spawns after a short delay so the "INTRUSION DETECTED" banner
+    // clears first. Positioned right-of-center; player enters from the left.
+    this.pendingSpawns = 1;
+    const viewW = WIDTH / this.cameras.main.zoom;
+    const bx = room.cameraLockX + viewW * 0.7;
+    const by = GAME.floorBottom - 6;
+    this.time.delayedCall(600, () => {
+      const boss = new BroadcastVan(this, bx, by);
+      this.enemies.add(boss);
+      this.worldLayer.add(boss);
+      this.boss = boss;
+      this.showBossHUD();
+      this.pendingSpawns = 0;
+    });
+  }
+
+  private fireBroadcastWave() {
+    if (!this.boss || !this.boss.active) return;
+    const dir = this.boss.facing; // -1 fires left, 1 fires right
+    const startX = this.boss.x + dir * 20;
+    const startY = this.boss.y - 4;
+    const wave = this.broadcastWaves.get(startX, startY, 'broadcast-wave') as Phaser.Physics.Arcade.Sprite | null;
+    if (!wave) return;
+    wave.enableBody(true, startX, startY, true, true);
+    const body = wave.body as Phaser.Physics.Arcade.Body;
+    body.setAllowGravity(false);
+    body.setVelocity(dir * 90, 0);
+    wave.setFlipX(dir === -1);
+    wave.setTint(0xffffff);
+    this.worldLayer.add(wave);
+    // Auto-recycle after the wave leaves the room.
+    this.time.delayedCall(2500, () => {
+      if (wave.active) wave.disableBody(true, true);
+    });
+  }
+
+  private broadcastWaveHitPlayer(wave: Phaser.Physics.Arcade.Sprite) {
+    if (!wave.active) return;
+    const now = this.time.now;
+    // Reuse the same iframe window as enemy contact to prevent multi-tick hits.
+    if (this.player.active === false) return;
+    wave.disableBody(true, true);
+    this.health -= 1;
+    this.hudText.setText(this.healthString());
+    this.player.triggerHit();
+    this.cameras.main.shake(180, 0.012);
+    this.cameras.main.flash(110, 255, 45, 149);
+    this.spawnBurst(this.player.x, this.player.y, COLORS.gridCyan, 8);
+    if (this.health <= 0) this.triggerGameOver();
+    void now;
+  }
+
+  private createBossHUD() {
+    if (this.bossBarBg) return;
+    this.bossBarBg = this.add.graphics().setScrollFactor(0).setDepth(1002).setVisible(false);
+    this.bossBarFill = this.add.graphics().setScrollFactor(0).setDepth(1003).setVisible(false);
+    this.bossLabel = this.add
+      .text(WIDTH / 2, 20, 'OC-BC-01 // BROADCAST UNIT', {
+        fontFamily: 'Courier New, monospace',
+        fontSize: '7px',
+        color: HEX.textShadow,
+      })
+      .setOrigin(0.5, 0)
+      .setScrollFactor(0)
+      .setDepth(1004)
+      .setVisible(false);
+    this.hudLayer.add([this.bossBarBg, this.bossBarFill, this.bossLabel]);
+  }
+
+  private showBossHUD() {
+    this.createBossHUD();
+    this.bossBarBg?.setVisible(true);
+    this.bossBarFill?.setVisible(true);
+    this.bossLabel?.setVisible(true);
+    this.updateBossHUD();
+  }
+
+  private hideBossHUD() {
+    this.bossBarBg?.setVisible(false);
+    this.bossBarFill?.setVisible(false);
+    this.bossLabel?.setVisible(false);
+  }
+
+  private updateBossHUD() {
+    if (!this.bossBarBg || !this.bossBarFill || !this.boss) return;
+    const barW = WIDTH - 100;
+    const barH = 5;
+    const barX = 50;
+    const barY = 30;
+    this.bossBarBg.clear();
+    this.bossBarBg.fillStyle(0x05000d, 0.85);
+    this.bossBarBg.fillRect(barX, barY, barW, barH);
+    this.bossBarBg.lineStyle(1, 0x00f6ff, 0.9);
+    this.bossBarBg.strokeRect(barX, barY, barW, barH);
+    this.bossBarFill.clear();
+    this.bossBarFill.fillStyle(0xff2d95, 0.95);
+    this.bossBarFill.fillRect(barX + 1, barY + 1, (barW - 2) * this.boss.hpFraction(), barH - 2);
   }
 
   private clearRoom() {

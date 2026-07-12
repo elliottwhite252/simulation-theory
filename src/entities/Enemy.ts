@@ -6,8 +6,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
   hitFlashUntil = 0;
   iframesUntil = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, 'enemy-visor');
+  constructor(scene: Phaser.Scene, x: number, y: number, textureKey: string = 'enemy-visor') {
+    super(scene, x, y, textureKey);
     scene.add.existing(this);
     scene.physics.add.existing(this);
     const body = this.body as Phaser.Physics.Arcade.Body;

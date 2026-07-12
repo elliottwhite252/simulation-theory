@@ -89,17 +89,19 @@ export const CAR_PALETTE: Array<{ body: number; window: number; glow: number; li
   { body: 0x4b1d96, window: 0x1a0a40, glow: 0xff2d95, light: 0x00f6ff }, // purple
 ];
 
-// Each room defines a camera-lock zone the player enters and an enemy wave.
+// Each room defines a camera-lock zone the player enters and either an enemy
+// wave or a single boss fight.
 export interface RoomDef {
   triggerX: number; // when camera scrollX reaches this, lock the room
   cameraLockX: number; // camera scrollX value during the lock
-  enemyCount: number;
+  enemyCount: number; // ignored if bossType is set — bosses spawn 1-of-1
+  bossType?: 'broadcastVan';
 }
 
 export const ROOMS: RoomDef[] = [
   { triggerX: 240,  cameraLockX: 240,  enemyCount: 3 },
   { triggerX: 720,  cameraLockX: 720,  enemyCount: 4 },
-  { triggerX: 1200, cameraLockX: 1200, enemyCount: 5 },
+  { triggerX: 1200, cameraLockX: 1200, enemyCount: 1, bossType: 'broadcastVan' },
 ];
 
 // World is `worldWidth` wide but the camera can scroll up to (worldWidth - WIDTH).
