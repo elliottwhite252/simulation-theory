@@ -3,6 +3,7 @@ import { WIDTH, HEIGHT, HEX, GAME, ROOMS, MAX_CAMERA_X, COLORS } from '../config
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { BroadcastVan } from '../entities/BroadcastVan';
+import { TouchControls, shouldShowTouchControls } from '../entities/TouchControls';
 import { getSynth } from '../audio/synth';
 
 type Phase = 'roaming' | 'locked' | 'cleared' | 'won' | 'gameover';
@@ -38,6 +39,9 @@ export class GameScene extends Phaser.Scene {
   private roomText!: Phaser.GameObjects.Text;
   private goText!: Phaser.GameObjects.Text;
   private muteText?: Phaser.GameObjects.Text;
+
+  // Touch overlay — only instantiated on touch-capable devices (or ?touch=1).
+  private touch?: TouchControls;
 
   // Boss fight state — populated when a boss room locks.
   private boss?: BroadcastVan;
@@ -173,6 +177,15 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.buildHUD();
+
+    // Mobile / touch overlay — joystick + shoot/melee buttons. Auto-hidden on
+    // desktop; forced visible with ?touch=1 for dev testing.
+    if (shouldShowTouchControls()) {
+      this.touch = new TouchControls(this);
+      this.touch.onShoot = () => this.tryShoot();
+      this.touch.onMelee = () => this.tryMelee();
+      this.hudLayer.add(this.touch.gameObjects());
+    }
   }
 
   private muteLabel() {
@@ -183,7 +196,7 @@ export class GameScene extends Phaser.Scene {
   update(time: number, _delta: number) {
     if (this.phase === 'gameover' || this.phase === 'won') return;
 
-    // Player movement (4-dir)
+    // Player movement (4-dir + analog stick)
     let vx = 0;
     let vy = 0;
     if (this.keys.left.isDown || this.keys.a.isDown) vx -= 1;
@@ -194,6 +207,13 @@ export class GameScene extends Phaser.Scene {
     if (vx !== 0 && vy !== 0) {
       vx *= 0.7071;
       vy *= 0.7071;
+    }
+
+    // Touch joystick overrides keyboard when actively engaged (analog input,
+    // magnitude already normalized to -1..1 by TouchControls).
+    if (this.touch && (this.touch.vx !== 0 || this.touch.vy !== 0)) {
+      vx = this.touch.vx;
+      vy = this.touch.vy;
     }
 
     if (this.phase === 'locked') {
