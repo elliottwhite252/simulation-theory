@@ -80,14 +80,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, GAME.worldWidth, HEIGHT);
     this.cameras.main.setBounds(0, 0, GAME.worldWidth, HEIGHT);
 
-    // Painted city backdrop — tiled across the full world width so it scrolls
+    // Painted backdrop — tiled across the full world width so it scrolls
     // seamlessly as the camera moves. Native image height (1536) is scaled to the
-    // canvas height (270), then repeats horizontally.
+    // canvas height (270), then repeats horizontally. ?bg=zone2 swaps to the
+    // subway backdrop for level-2 preview until the full Level 2 flow lands.
+    const bgKey = new URLSearchParams(window.location.search).get('bg') === 'zone2'
+      ? 'bg-zone-2'
+      : 'bg-zone-1';
     this.bgLayer = this.add
-      .tileSprite(0, 0, GAME.worldWidth, HEIGHT, 'bg-zone-1')
+      .tileSprite(0, 0, GAME.worldWidth, HEIGHT, bgKey)
       .setOrigin(0, 0)
       .setDepth(-100);
-    const bgTex = this.textures.get('bg-zone-1').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const bgTex = this.textures.get(bgKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
     const bgScale = HEIGHT / bgTex.height;
     this.bgLayer.setTileScale(bgScale, bgScale);
 
