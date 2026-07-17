@@ -325,7 +325,12 @@ export class GameScene extends Phaser.Scene {
       const dy = enemy.y - cy;
       if (Math.hypot(dx, dy) < reach) {
         const body = enemy.body as Phaser.Physics.Arcade.Body;
-        body.setVelocity(this.player.facing * 130, -20);
+        // Skip knockback for immovable enemies (bosses) — they anchor by
+        // design and setVelocity would override that, launching them
+        // off-screen with no chase AI to pull them back.
+        if (!body.immovable) {
+          body.setVelocity(this.player.facing * 130, -20);
+        }
         this.damageEnemy(enemy, GAME.meleeDamage, this.player.x);
       }
       return true;
