@@ -9,6 +9,15 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
+    // Debug shortcut: ?skip=1 jumps straight into GameScene, bypassing the
+    // menu and cutscene. Handy for iterating on gameplay/backdrops without
+    // clicking through every time.
+    if (new URLSearchParams(window.location.search).get('skip') === '1') {
+      getSynth().start();
+      this.scene.start('GameScene');
+      return;
+    }
+
     // Painted menu backdrop — scale-to-fit the game canvas.
     const bg = this.add
       .image(WIDTH / 2, HEIGHT / 2, 'bg-menu')
