@@ -543,55 +543,27 @@ export class GameScene extends Phaser.Scene {
     const viewW = WIDTH / this.cameras.main.zoom;
     this.pendingSpawns = room.enemyCount;
     for (let i = 0; i < room.enemyCount; i++) {
+      // Alternate sides so pressure comes from both directions across the wave.
+      // Spawn positions sit off-screen just past the room's visible edge —
+      // Enemy.chase() naturally walks them into view so the player sees them
+      // coming instead of materializing on top of them.
       const side = i % 2 === 0 ? 1 : -1;
       const ex = side === 1
-        ? room.cameraLockX + viewW - 10 - i * 7
-        : room.cameraLockX + 10 + i * 7;
+        ? room.cameraLockX + viewW + 20
+        : room.cameraLockX - 20;
       const ey = Phaser.Math.Between(GAME.floorTop, GAME.floorBottom);
-      // Stagger spawns — first at 300ms, then ~900ms between each, with a
-      // 700ms telegraph before each enemy actually materializes.
+      // Stagger arrivals — first at 300ms, ~900ms between each — so the wave
+      // reads as a sequence, not a swarm.
       const startDelay = 300 + i * 900;
-      this.time.delayedCall(startDelay, () => this.telegraphAndSpawn(ex, ey));
+      this.time.delayedCall(startDelay, () => this.spawnEnemy(ex, ey));
     }
   }
 
-  private telegraphAndSpawn(x: number, y: number) {
-    // Two stacked native Arc objects — Phaser animates scale/alpha at engine
-    // level, no per-frame JS callback. Cheap and smooth.
-    const outerRing = this.add
-      .circle(x, y, 12, COLORS.enemy, 0.15)
-      .setStrokeStyle(1, COLORS.enemy, 0.9)
-      .setDepth(-5)
-      .setScale(0.2);
-    const innerDot = this.add
-      .circle(x, y, 5, COLORS.enemy, 0.85)
-      .setDepth(-5)
-      .setScale(0.2);
-    this.worldLayer.add(outerRing);
-    this.worldLayer.add(innerDot);
-
-    this.tweens.add({
-      targets: [outerRing, innerDot],
-      scale: 1,
-      duration: 700,
-      ease: 'Sine.easeIn',
-    });
-    this.tweens.add({
-      targets: outerRing,
-      alpha: { from: 0.9, to: 0.4 },
-      duration: 700,
-      ease: 'Sine.easeIn',
-    });
-
-    this.time.delayedCall(700, () => {
-      outerRing.destroy();
-      innerDot.destroy();
-      // No particle burst here — the telegraph already provides the materialization beat.
-      const enemy = new Enemy(this, x, y);
-      this.enemies.add(enemy);
-      this.worldLayer.add(enemy);
-      this.pendingSpawns = Math.max(0, this.pendingSpawns - 1);
-    });
+  private spawnEnemy(x: number, y: number) {
+    const enemy = new Enemy(this, x, y);
+    this.enemies.add(enemy);
+    this.worldLayer.add(enemy);
+    this.pendingSpawns = Math.max(0, this.pendingSpawns - 1);
   }
 
   // --------------------------- HUD + banners ---------------------------
