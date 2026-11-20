@@ -18,6 +18,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('enemy-visor', '/assets/enemy-visor.png');
     this.load.image('omnicast-logo', '/assets/omnicast-logo.png');
     this.load.image('bg-zone-1', '/assets/bg-zone-1.png');
+    this.load.image('bg-zone-2', '/assets/bg-zone-2.png');
     this.load.image('bg-menu', '/assets/bg-menu.png');
     this.load.image('cutscene-1', '/assets/cutscene-1.png');
     this.load.image('cutscene-2', '/assets/cutscene-2.png');
@@ -43,7 +44,7 @@ export class BootScene extends Phaser.Scene {
     // Nano Banana bakes its "transparent" checkerboard as two neutral grays
     // (~rgb(106,107,107) and ~rgb(174,174,174)) instead of using an alpha channel.
     // We key them out at load time so every generated sprite just works.
-    const keyable = ['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-menu', 'cutscene-1', 'cutscene-2', 'cutscene-3', 'cutscene-4', 'boss-broadcast-van'] as const;
+    const keyable = ['iris-idle', 'iris-shoot', 'iris-melee', 'iris-hit', 'enemy-visor', 'omnicast-logo', 'bg-zone-1', 'bg-zone-2', 'bg-menu', 'cutscene-1', 'cutscene-2', 'cutscene-3', 'cutscene-4', 'boss-broadcast-van'] as const;
     keyable.forEach((k) => {
       if (this.textures.exists(k)) this.keyOutCheckerboard(k);
     });
@@ -53,6 +54,7 @@ export class BootScene extends Phaser.Scene {
     // vertical banding on fractional ratios. Linear filtering makes it smooth.
     // Character sprites stay on nearest-neighbor so pixel-art details stay crisp.
     this.textures.get('bg-zone-1').setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.textures.get('bg-zone-2').setFilter(Phaser.Textures.FilterMode.LINEAR);
     this.textures.get('bg-menu').setFilter(Phaser.Textures.FilterMode.LINEAR);
     this.textures.get('cutscene-1').setFilter(Phaser.Textures.FilterMode.LINEAR);
     this.textures.get('cutscene-2').setFilter(Phaser.Textures.FilterMode.LINEAR);

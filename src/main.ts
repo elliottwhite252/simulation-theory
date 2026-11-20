@@ -24,6 +24,11 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
+  input: {
+    // 4 concurrent pointers so joystick + shoot + melee can be pressed at the
+    // same time (mobile). Desktop mouse still works — it's pointer #0.
+    activePointers: 4,
+  },
   scene: [BootScene, MenuScene, CutsceneScene, GameScene],
 };
 

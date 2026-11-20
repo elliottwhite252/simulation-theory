@@ -3,6 +3,7 @@ import { WIDTH, HEIGHT, HEX, GAME, ROOMS, MAX_CAMERA_X, COLORS } from '../config
 import { Player } from '../entities/Player';
 import { Enemy } from '../entities/Enemy';
 import { BroadcastVan } from '../entities/BroadcastVan';
+import { TouchControls, shouldShowTouchControls } from '../entities/TouchControls';
 import { getSynth } from '../audio/synth';
 
 type Phase = 'roaming' | 'locked' | 'cleared' | 'won' | 'gameover';
@@ -38,6 +39,9 @@ export class GameScene extends Phaser.Scene {
   private roomText!: Phaser.GameObjects.Text;
   private goText!: Phaser.GameObjects.Text;
   private muteText?: Phaser.GameObjects.Text;
+
+  // Touch overlay — only instantiated on touch-capable devices (or ?touch=1).
+  private touch?: TouchControls;
 
   // Boss fight state — populated when a boss room locks.
   private boss?: BroadcastVan;
@@ -76,14 +80,18 @@ export class GameScene extends Phaser.Scene {
     this.physics.world.setBounds(0, 0, GAME.worldWidth, HEIGHT);
     this.cameras.main.setBounds(0, 0, GAME.worldWidth, HEIGHT);
 
-    // Painted city backdrop — tiled across the full world width so it scrolls
+    // Painted backdrop — tiled across the full world width so it scrolls
     // seamlessly as the camera moves. Native image height (1536) is scaled to the
-    // canvas height (270), then repeats horizontally.
+    // canvas height (270), then repeats horizontally. ?bg=zone2 swaps to the
+    // subway backdrop for level-2 preview until the full Level 2 flow lands.
+    const bgKey = new URLSearchParams(window.location.search).get('bg') === 'zone2'
+      ? 'bg-zone-2'
+      : 'bg-zone-1';
     this.bgLayer = this.add
-      .tileSprite(0, 0, GAME.worldWidth, HEIGHT, 'bg-zone-1')
+      .tileSprite(0, 0, GAME.worldWidth, HEIGHT, bgKey)
       .setOrigin(0, 0)
       .setDepth(-100);
-    const bgTex = this.textures.get('bg-zone-1').getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    const bgTex = this.textures.get(bgKey).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
     const bgScale = HEIGHT / bgTex.height;
     this.bgLayer.setTileScale(bgScale, bgScale);
 
@@ -173,6 +181,15 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.buildHUD();
+
+    // Mobile / touch overlay — joystick + shoot/melee buttons. Auto-hidden on
+    // desktop; forced visible with ?touch=1 for dev testing.
+    if (shouldShowTouchControls()) {
+      this.touch = new TouchControls(this);
+      this.touch.onShoot = () => this.tryShoot();
+      this.touch.onMelee = () => this.tryMelee();
+      this.hudLayer.add(this.touch.gameObjects());
+    }
   }
 
   private muteLabel() {
@@ -183,7 +200,7 @@ export class GameScene extends Phaser.Scene {
   update(time: number, _delta: number) {
     if (this.phase === 'gameover' || this.phase === 'won') return;
 
-    // Player movement (4-dir)
+    // Player movement (4-dir + analog stick)
     let vx = 0;
     let vy = 0;
     if (this.keys.left.isDown || this.keys.a.isDown) vx -= 1;
@@ -194,6 +211,13 @@ export class GameScene extends Phaser.Scene {
     if (vx !== 0 && vy !== 0) {
       vx *= 0.7071;
       vy *= 0.7071;
+    }
+
+    // Touch joystick overrides keyboard when actively engaged (analog input,
+    // magnitude already normalized to -1..1 by TouchControls).
+    if (this.touch && (this.touch.vx !== 0 || this.touch.vy !== 0)) {
+      vx = this.touch.vx;
+      vy = this.touch.vy;
     }
 
     if (this.phase === 'locked') {
@@ -301,7 +325,12 @@ export class GameScene extends Phaser.Scene {
       const dy = enemy.y - cy;
       if (Math.hypot(dx, dy) < reach) {
         const body = enemy.body as Phaser.Physics.Arcade.Body;
-        body.setVelocity(this.player.facing * 130, -20);
+        // Skip knockback for immovable enemies (bosses) — they anchor by
+        // design and setVelocity would override that, launching them
+        // off-screen with no chase AI to pull them back.
+        if (!body.immovable) {
+          body.setVelocity(this.player.facing * 130, -20);
+        }
         this.damageEnemy(enemy, GAME.meleeDamage, this.player.x);
       }
       return true;
@@ -519,55 +548,27 @@ export class GameScene extends Phaser.Scene {
     const viewW = WIDTH / this.cameras.main.zoom;
     this.pendingSpawns = room.enemyCount;
     for (let i = 0; i < room.enemyCount; i++) {
+      // Alternate sides so pressure comes from both directions across the wave.
+      // Spawn positions sit off-screen just past the room's visible edge —
+      // Enemy.chase() naturally walks them into view so the player sees them
+      // coming instead of materializing on top of them.
       const side = i % 2 === 0 ? 1 : -1;
       const ex = side === 1
-        ? room.cameraLockX + viewW - 10 - i * 7
-        : room.cameraLockX + 10 + i * 7;
+        ? room.cameraLockX + viewW + 20
+        : room.cameraLockX - 20;
       const ey = Phaser.Math.Between(GAME.floorTop, GAME.floorBottom);
-      // Stagger spawns — first at 300ms, then ~900ms between each, with a
-      // 700ms telegraph before each enemy actually materializes.
+      // Stagger arrivals — first at 300ms, ~900ms between each — so the wave
+      // reads as a sequence, not a swarm.
       const startDelay = 300 + i * 900;
-      this.time.delayedCall(startDelay, () => this.telegraphAndSpawn(ex, ey));
+      this.time.delayedCall(startDelay, () => this.spawnEnemy(ex, ey));
     }
   }
 
-  private telegraphAndSpawn(x: number, y: number) {
-    // Two stacked native Arc objects — Phaser animates scale/alpha at engine
-    // level, no per-frame JS callback. Cheap and smooth.
-    const outerRing = this.add
-      .circle(x, y, 12, COLORS.enemy, 0.15)
-      .setStrokeStyle(1, COLORS.enemy, 0.9)
-      .setDepth(-5)
-      .setScale(0.2);
-    const innerDot = this.add
-      .circle(x, y, 5, COLORS.enemy, 0.85)
-      .setDepth(-5)
-      .setScale(0.2);
-    this.worldLayer.add(outerRing);
-    this.worldLayer.add(innerDot);
-
-    this.tweens.add({
-      targets: [outerRing, innerDot],
-      scale: 1,
-      duration: 700,
-      ease: 'Sine.easeIn',
-    });
-    this.tweens.add({
-      targets: outerRing,
-      alpha: { from: 0.9, to: 0.4 },
-      duration: 700,
-      ease: 'Sine.easeIn',
-    });
-
-    this.time.delayedCall(700, () => {
-      outerRing.destroy();
-      innerDot.destroy();
-      // No particle burst here — the telegraph already provides the materialization beat.
-      const enemy = new Enemy(this, x, y);
-      this.enemies.add(enemy);
-      this.worldLayer.add(enemy);
-      this.pendingSpawns = Math.max(0, this.pendingSpawns - 1);
-    });
+  private spawnEnemy(x: number, y: number) {
+    const enemy = new Enemy(this, x, y);
+    this.enemies.add(enemy);
+    this.worldLayer.add(enemy);
+    this.pendingSpawns = Math.max(0, this.pendingSpawns - 1);
   }
 
   // --------------------------- HUD + banners ---------------------------
