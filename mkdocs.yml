@@ -1,0 +1,48 @@
+site_name: Simulation Theory Docs
+site_description: Documentation for Simulation Theory, a synthwave beat-em-up built with Phaser 3 and TypeScript.
+site_author: Elliott White
+site_url: https://elliottwhite252.github.io/simulation-theory/
+repo_url: https://github.com/elliottwhite252/simulation-theory
+repo_name: elliottwhite252/simulation-theory
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: pink
+  features:
+    - navigation.sections
+    - navigation.footer
+    - content.code.copy
+    - content.action.edit
+    - search.highlight
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Quickstart: quickstart.md
+  - How-to guides:
+      - Tune the difficulty: how-to/tune-difficulty.md
+      - Add a room: how-to/add-a-room.md
+  - Concepts:
+      - Rooms and the camera: concepts/rooms-and-camera.md
+      - The boss fight: concepts/boss-fight.md
+  - Reference:
+      - Controls: reference/controls.md
+      - Gameplay settings: reference/gameplay-settings.md
+  - Release notes: release-notes.md
+  - About these docs: about.md

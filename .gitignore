@@ -4,3 +4,8 @@ dist
 *.log
 .vite
 .claude
+
+# Docs
+site/
+.vale/styles/*
+!.vale/styles/config/
