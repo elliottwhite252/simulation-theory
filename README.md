@@ -4,6 +4,8 @@ An 80s synthwave neon-city beat-em-up. Inspired by Muse's *Simulation Theory* al
 
 Built with [Phaser 3](https://phaser.io) + TypeScript + [Vite](https://vitejs.dev). All visuals are drawn procedurally — no external art assets. The soundtrack is generated live via the Web Audio API.
 
+📖 **[Read the docs](https://elliottwhite252.github.io/simulation-theory/)**: quickstart, controls, how-to guides, and gameplay reference.
+
 ## Run it locally
 
 Requires **Node 20+** (the project uses Vite 5).
